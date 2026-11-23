@@ -52,15 +52,7 @@ def close_all_positions(
             risk_manager.record_trade_closed(pnl)
             logger.info("Position fermée [%s] (%s) | PnL net : %+.4f €", symbol, reason, pnl)
             send_telegram(
-                f"🔴 <b>VENTE ({reason})</b>
-"
-                f"Paire : <b>{symbol}</b>
-"
-                f"Prix : {px:.2f} €
-"
-                f"PnL net : <b>{pnl:+.2f} €</b>
-"
-                f"Capital : {broker.cash_eur:.2f} €"
+                f"🔴 <b>VENTE ({reason})</b>\nPaire : <b>{symbol}</b>\nPrix : {px:.2f} €\nPnL net : <b>{pnl:+.2f} €</b>\nCapital : {broker.cash_eur:.2f} €"
             )
 
 
@@ -73,13 +65,7 @@ def run_session() -> None:
     logger.info("=== Démarrage session %s (MODE=%s, Capital=%.2f €) ===", session_id, config.MODE, config.INITIAL_CAPITAL_EUR)
     logger.info("Durée : %d min | Clôture auto à partir de : %s UTC", config.SESSION_DURATION_MINUTES, close_window_start.strftime("%H:%M:%S"))
     send_telegram(
-        f"🚀 <b>Session Bot Crypto démarrée</b>
-"
-        f"ID : <code>{session_id}</code>
-"
-        f"Paires : {', '.join(config.SYMBOLS)}
-"
-        f"Capital virtuel : {config.INITIAL_CAPITAL_EUR:.2f} € | Durée : {config.SESSION_DURATION_MINUTES} min"
+        f"🚀 <b>Session Bot Crypto démarrée</b>\nID : <code>{session_id}</code>\nPaires : {', '.join(config.SYMBOLS)}\nCapital virtuel : {config.INITIAL_CAPITAL_EUR:.2f} € | Durée : {config.SESSION_DURATION_MINUTES} min"
     )
 
     exchange = create_exchange()
@@ -122,8 +108,7 @@ def run_session() -> None:
             killed, kill_reason = risk_manager.check_kill_switch(equity)
             if killed:
                 logger.warning("KILL SWITCH DÉCLENCHÉ : %s", kill_reason)
-                send_telegram(f"🛑 <b>KILL SWITCH DÉCLENCHÉ</b>
-{kill_reason}")
+                send_telegram(f"🛑 <b>KILL SWITCH DÉCLENCHÉ</b>\n{kill_reason}")
                 close_all_positions(broker, risk_manager, current_prices, reason="KILL_SWITCH")
                 break
 
@@ -139,11 +124,7 @@ def run_session() -> None:
                         risk_manager.record_trade_closed(pnl)
                         logger.info("Clôture fin de session [%s] à %.4f € | PnL net : %+.4f €", symbol, px, pnl)
                         send_telegram(
-                            f"⏰ <b>CLÔTURE FIN DE SESSION</b>
-"
-                            f"Paire : <b>{symbol}</b> à {px:.2f} €
-"
-                            f"PnL net : <b>{pnl:+.2f} €</b>"
+                            f"⏰ <b>CLÔTURE FIN DE SESSION</b>\nPaire : <b>{symbol}</b> à {px:.2f} €\nPnL net : <b>{pnl:+.2f} €</b>"
                         )
                     continue
 
@@ -156,13 +137,7 @@ def run_session() -> None:
                         logger.info("Sortie [%s] (%s) à %.4f € | PnL net : %+.4f €", symbol, exit_reason, px, pnl)
                         icon = "✅" if pnl >= 0 else "❌"
                         send_telegram(
-                            f"{icon} <b>VENTE ({exit_reason})</b>
-"
-                            f"Paire : <b>{symbol}</b> à {px:.2f} €
-"
-                            f"PnL net : <b>{pnl:+.2f} €</b>
-"
-                            f"Capital : {broker.cash_eur:.2f} €"
+                            f"{icon} <b>VENTE ({exit_reason})</b>\nPaire : <b>{symbol}</b> à {px:.2f} €\nPnL net : <b>{pnl:+.2f} €</b>\nCapital : {broker.cash_eur:.2f} €"
                         )
 
             # 4. Recherche de nouveaux signaux d'achat
@@ -205,13 +180,7 @@ def run_session() -> None:
                             signal["take_profit"],
                         )
                         send_telegram(
-                            f"🟢 <b>ACHAT SPOT ({symbol})</b>
-"
-                            f"Prix : {opened['entry_price']:.2f} € | Montant : {notional_eur:.2f} €
-"
-                            f"Stop-Loss : {signal['stop_loss']:.2f} €
-"
-                            f"Take-Profit : {signal['take_profit']:.2f} €"
+                            f"🟢 <b>ACHAT SPOT ({symbol})</b>\nPrix : {opened['entry_price']:.2f} € | Montant : {notional_eur:.2f} €\nStop-Loss : {signal['stop_loss']:.2f} €\nTake-Profit : {signal['take_profit']:.2f} €"
                         )
 
             equity_after = broker.total_equity(current_prices)
@@ -247,11 +216,7 @@ def run_session() -> None:
             net_session_pnl,
         )
         send_telegram(
-            f"🏁 <b>Fin session {session_id}</b>
-"
-            f"Trades exécutés : {risk_manager.trades_this_session}
-"
-            f"Equity finale : <b>{final_equity:.2f} €</b> ({net_session_pnl:+.2f} €)"
+            f"🏁 <b>Fin session {session_id}</b>\nTrades exécutés : {risk_manager.trades_this_session}\nEquity finale : <b>{final_equity:.2f} €</b> ({net_session_pnl:+.2f} €)"
         )
 
 
