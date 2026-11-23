@@ -1,6 +1,5 @@
 """
 Notifications Telegram en direct (optionnel).
-Si TELEGRAM_BOT_TOKEN et TELEGRAM_CHAT_ID ne sont pas définis, le bot continue silencieusement.
 """
 
 import logging

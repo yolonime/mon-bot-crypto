@@ -1,6 +1,6 @@
 # Mon Bot Crypto (Paper Trading)
 
-Suivi en direct minute par minute disponible sur votre page **GitHub Pages** (`docs/index.html`).
+Suivi en direct (bougies, indicateurs techniques et radar de décision) disponible sur votre page **GitHub Pages** (`docs/index.html`).
 
 ## Dernier rapport de suivi
 <!-- DASHBOARD_START -->

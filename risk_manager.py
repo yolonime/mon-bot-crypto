@@ -1,6 +1,5 @@
 """
 Gestion stricte du risque pour un petit capital (ex: 100 €).
-Calcule la taille de position et applique les coupe-circuits (kill switch).
 """
 
 from datetime import datetime, timezone

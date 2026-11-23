@@ -1,0 +1,15 @@
+{
+  "updated_at_utc": "En attente de la première session...",
+  "session_id": "-",
+  "status": "IDLE",
+  "cash_eur": 100.0,
+  "equity_eur": 100.0,
+  "session_pnl_eur": 0.0,
+  "trades_session": 0,
+  "max_trades_session": 3,
+  "prices": {},
+  "open_positions": [],
+  "equity_curve": [],
+  "recent_trades": [],
+  "market_analysis": {}
+}

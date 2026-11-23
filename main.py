@@ -1,6 +1,6 @@
 """
-Point d'entrée principal de la session de trading simulé (durée configurable, ex: 120 minutes).
-Met à jour le site web GitHub Pages (docs/status.json) minute par minute.
+Point d'entrée principal de la session de trading simulé (120 minutes).
+Envoie les bougies, indicateurs, prédictions et positions au site web GitHub Pages minute par minute.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -15,7 +15,12 @@ from dashboard import push_live_update, update_readme, update_web_status
 from notifier import send_telegram
 from paper_broker import PaperBroker
 from risk_manager import RiskManager
-from strategy import check_buy_signal, check_exit_condition, compute_indicators
+from strategy import (
+    build_symbol_snapshot,
+    check_buy_signal,
+    check_exit_condition,
+    compute_indicators,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -73,6 +78,7 @@ def run_session() -> None:
     risk_manager = RiskManager(initial_session_capital=config.INITIAL_CAPITAL_EUR)
 
     last_prices: dict[str, float] = {}
+    last_analysis: dict[str, dict] = {}
     equity_curve: list[dict] = []
 
     try:
@@ -85,8 +91,9 @@ def run_session() -> None:
             closing_soon = now >= close_window_start
             current_prices: dict[str, float] = {}
             indicators_by_symbol: dict[str, pd.DataFrame] = {}
+            market_analysis: dict[str, dict] = {}
 
-            # 1. Récupération des données et calcul des indicateurs
+            # 1. Récupération des données, calcul des indicateurs et snapshot visuel
             for symbol in config.SYMBOLS:
                 try:
                     df = fetch_ohlcv_df(exchange, symbol)
@@ -95,6 +102,8 @@ def run_session() -> None:
                     latest_price = float(df_ind.iloc[-1]["close"])
                     current_prices[symbol] = latest_price
                     last_prices[symbol] = latest_price
+                    market_analysis[symbol] = build_symbol_snapshot(df_ind)
+                    last_analysis[symbol] = market_analysis[symbol]
                 except (ccxt.NetworkError, ccxt.ExchangeError) as exc:
                     logger.warning("Erreur réseau/exchange sur %s : %s", symbol, exc)
                 except Exception as exc:
@@ -142,6 +151,7 @@ def run_session() -> None:
                         )
 
             # 4. Recherche de nouveaux signaux d'achat
+            blocker_msg = ""
             for symbol, df_ind in indicators_by_symbol.items():
                 can_open, reason_msg = risk_manager.can_open_trade(
                     current_capital=broker.cash_eur,
@@ -150,6 +160,7 @@ def run_session() -> None:
                     now=now,
                 )
                 if not can_open:
+                    blocker_msg = reason_msg
                     continue
 
                 signal = check_buy_signal(df_ind)
@@ -160,6 +171,7 @@ def run_session() -> None:
                         stop_loss=signal["stop_loss"],
                     )
                     if amount <= 0:
+                        blocker_msg = size_msg
                         logger.info("Signal ignoré sur %s : %s", symbol, size_msg)
                         continue
 
@@ -197,6 +209,8 @@ def run_session() -> None:
                 prices=current_prices,
                 positions=broker.positions,
                 equity_curve=equity_curve,
+                market_analysis=market_analysis,
+                blocker_reason=blocker_msg,
             )
             push_live_update()
 
@@ -231,6 +245,8 @@ def run_session() -> None:
             prices=last_prices,
             positions=broker.positions,
             equity_curve=equity_curve,
+            market_analysis=last_analysis,
+            blocker_reason="Session terminée",
         )
         push_live_update()
 

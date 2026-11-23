@@ -1,5 +1,5 @@
 """
-Met à jour README.md et docs/status.json (pour le site web GitHub Pages en temps réel)
+Met à jour README.md et docs/status.json (bougies, indicateurs, prédictions, trades)
 et pousse les données vers GitHub à chaque minute.
 """
 
@@ -47,6 +47,8 @@ def update_web_status(
     prices: dict[str, float],
     positions: dict[str, dict],
     equity_curve: list[dict],
+    market_analysis: dict[str, dict],
+    blocker_reason: str = "",
 ) -> None:
     os.makedirs(os.path.dirname(config.STATUS_JSON_PATH), exist_ok=True)
     now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC")
@@ -79,17 +81,15 @@ def update_web_status(
         "open_positions": open_pos_list,
         "equity_curve": equity_curve[-150:],
         "recent_trades": _load_recent_trades(20),
+        "market_analysis": market_analysis,
+        "blocker_reason": blocker_reason,
     }
 
     with open(config.STATUS_JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+        json.dump(payload, f, ensure_ascii=False)
 
 
 def push_live_update() -> None:
-    """
-    Pousse docs/status.json, trades_history.csv et README.md sur GitHub
-    pour alimenter le site GitHub Pages minute par minute.
-    """
     if os.getenv("GITHUB_ACTIONS") != "true":
         return
     try:
