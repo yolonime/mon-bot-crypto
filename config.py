@@ -3,6 +3,8 @@ Configuration centrale du bot en mode simulation (PAPER).
 Toutes les règles de session, de stratégie et de risque sont regroupées ici.
 """
 
+import os
+
 # Sécurité : le bot reste en simulation ("PAPER") par défaut.
 MODE = "PAPER"
 
@@ -53,6 +55,10 @@ COOLDOWN_MINUTES = 15           # Délai minimum entre deux trades
 MAX_SESSION_LOSS_PCT = 0.03     # Kill switch : arrêt si perte session >= 3 % (ex: 3,00 €)
 MAX_CONSECUTIVE_LOSSES = 2    # Kill switch : arrêt après 2 Stop-Loss consécutifs
 
+# Notifications Telegram (optionnel : lus depuis les GitHub Secrets)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
 # Fichiers de sortie
 TRADES_CSV_PATH = "trades_history.csv"
-STATE_JSON_PATH = "state.json"
+README_PATH = "README.md"

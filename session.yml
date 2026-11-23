@@ -1,0 +1,41 @@
+name: Session Bot Crypto (Paper)
+
+on:
+  schedule:
+    # 13h30 UTC = 14h30 heure de Paris (hiver), du mardi au jeudi (reste sous le quota gratuit)
+    - cron: '30 13 * * 2-4'
+  workflow_dispatch: # Permet de lancer une session manuellement depuis l'onglet Actions
+
+permissions:
+  contents: write
+
+jobs:
+  run-paper-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 130 # Légère marge au-dessus des 120 minutes de session
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer la session de paper trading (120 min)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py
+
+      - name: Sauvegarder l'historique et le tableau de bord dans le dépôt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add trades_history.csv README.md
+          git diff --staged --quiet || git commit -m "Update trades_history.csv and dashboard"
+          git push
