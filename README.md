@@ -4,5 +4,7 @@ Suivi en direct (bougies, indicateurs techniques et radar de décision) disponib
 
 ## Dernier rapport de suivi
 <!-- DASHBOARD_START -->
-*Aucune session exécutée pour le moment.*
+*Dernière mise à jour : 23/11/2026 12:44 UTC*
+
+Aucune transaction enregistrée pour le moment (le bot a surveillé le marché sans signal valide).
 <!-- DASHBOARD_END -->
