@@ -1,5 +1,5 @@
 """
-Calcul des indicateurs techniques et détection des signaux d'achat / sortie.
+Calcul des indicateurs techniques et détection des signaux selon le profil du bot.
 """
 
 import numpy as np
@@ -7,12 +7,12 @@ import pandas as pd
 import config
 
 
-def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
+def compute_indicators(df: pd.DataFrame, bot_cfg: dict) -> pd.DataFrame:
     data = df.copy()
 
-    data["ema_fast"] = data["close"].ewm(span=config.EMA_FAST, adjust=False).mean()
-    data["ema_slow"] = data["close"].ewm(span=config.EMA_SLOW, adjust=False).mean()
-    data["ema_trend"] = data["close"].ewm(span=config.EMA_TREND, adjust=False).mean()
+    data["ema_fast"] = data["close"].ewm(span=bot_cfg["ema_fast"], adjust=False).mean()
+    data["ema_slow"] = data["close"].ewm(span=bot_cfg["ema_slow"], adjust=False).mean()
+    data["ema_trend"] = data["close"].ewm(span=bot_cfg["ema_trend"], adjust=False).mean()
 
     delta = data["close"].diff()
     gain = delta.clip(lower=0.0)
@@ -39,8 +39,9 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-def check_buy_signal(df: pd.DataFrame) -> dict | None:
-    if len(df) < max(config.EMA_TREND, config.ATR_PERIOD, config.VOLUME_SMA_PERIOD) + 3:
+def check_buy_signal(df: pd.DataFrame, bot_cfg: dict) -> dict | None:
+    min_len = max(bot_cfg["ema_trend"], config.ATR_PERIOD, config.VOLUME_SMA_PERIOD) + 3
+    if len(df) < min_len:
         return None
 
     prev = df.iloc[-3]
@@ -51,19 +52,19 @@ def check_buy_signal(df: pd.DataFrame) -> dict | None:
 
     trend_ok = curr["close"] > curr["ema_trend"]
     crossover_ok = (prev["ema_fast"] <= prev["ema_slow"]) and (curr["ema_fast"] > curr["ema_slow"])
-    rsi_ok = config.RSI_MIN <= curr["rsi"] <= config.RSI_MAX
+    rsi_ok = bot_cfg["rsi_min"] <= curr["rsi"] <= bot_cfg["rsi_max"]
     volume_ok = curr["volume"] > curr["vol_sma"]
 
     if trend_ok and crossover_ok and rsi_ok and volume_ok:
         entry_price = float(curr["close"])
         atr_val = float(curr["atr"])
-        stop_loss = entry_price - (config.ATR_SL_MULTIPLIER * atr_val)
+        stop_loss = entry_price - (bot_cfg["atr_sl_mult"] * atr_val)
         risk_per_unit = entry_price - stop_loss
 
         if risk_per_unit <= 0:
             return None
 
-        take_profit = entry_price + (risk_per_unit * config.RISK_REWARD_RATIO)
+        take_profit = entry_price + (risk_per_unit * bot_cfg["rr_ratio"])
 
         return {
             "entry_price": entry_price,

@@ -1,5 +1,5 @@
 """
-Gestion stricte du risque pour un petit capital (ex: 100 €).
+Gestion stricte du risque pour un petit capital (100 €).
 """
 
 from datetime import datetime, timezone

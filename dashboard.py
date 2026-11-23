@@ -1,6 +1,6 @@
 """
-Met à jour README.md et docs/status.json (portefeuille, positions ouvertes, courbe d'équité, trades)
-et pousse vers GitHub uniquement lors d'un trade ou en fin de session.
+Met à jour docs/status_<bot_id>.json et pousse uniquement les fichiers propres au bot
+lors d'un trade ou en fin de session (avec boucle anti-conflit Git).
 """
 
 from datetime import datetime, timezone
@@ -8,19 +8,17 @@ import json
 import logging
 import os
 import subprocess
+import time
 import pandas as pd
 import config
 
 logger = logging.getLogger("CryptoPaperBot")
 
-START_MARKER = "<!-- DASHBOARD_START -->"
-END_MARKER = "<!-- DASHBOARD_END -->"
 
-
-def _load_recent_trades(limit: int = 20) -> list[dict]:
-    if not os.path.exists(config.TRADES_CSV_PATH):
+def _load_recent_trades(csv_path: str, limit: int = 20) -> list[dict]:
+    if not os.path.exists(csv_path):
         return []
-    df = pd.read_csv(config.TRADES_CSV_PATH)
+    df = pd.read_csv(csv_path)
     if df.empty:
         return []
     recent = df.tail(limit).iloc[::-1]
@@ -42,6 +40,7 @@ def _load_recent_trades(limit: int = 20) -> list[dict]:
 
 
 def update_web_status(
+    bot_cfg: dict,
     session_id: str,
     status: str,
     cash_eur: float,
@@ -51,7 +50,8 @@ def update_web_status(
     positions: dict[str, dict],
     equity_curve: list[dict],
 ) -> None:
-    os.makedirs(os.path.dirname(config.STATUS_JSON_PATH), exist_ok=True)
+    status_path = bot_cfg["status_json_path"]
+    os.makedirs(os.path.dirname(status_path), exist_ok=True)
     now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC")
 
     open_pos_list = []
@@ -71,6 +71,18 @@ def update_web_status(
         )
 
     payload = {
+        "bot_id": bot_cfg["bot_id"],
+        "bot_name": bot_cfg["name"],
+        "bot_description": bot_cfg["description"],
+        "params": {
+            "ema_fast": bot_cfg["ema_fast"],
+            "ema_slow": bot_cfg["ema_slow"],
+            "ema_trend": bot_cfg["ema_trend"],
+            "rsi_min": bot_cfg["rsi_min"],
+            "rsi_max": bot_cfg["rsi_max"],
+            "atr_sl_mult": bot_cfg["atr_sl_mult"],
+            "rr_ratio": bot_cfg["rr_ratio"],
+        },
         "updated_at_utc": now_str,
         "session_id": session_id,
         "status": status,
@@ -82,122 +94,44 @@ def update_web_status(
         "prices": {k: round(float(v), 4) for k, v in prices.items()},
         "open_positions": open_pos_list,
         "equity_curve": equity_curve[-150:],
-        "recent_trades": _load_recent_trades(20),
+        "recent_trades": _load_recent_trades(bot_cfg["csv_path"], 20),
     }
 
-    with open(config.STATUS_JSON_PATH, "w", encoding="utf-8") as f:
+    with open(status_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
-def push_live_update(commit_message: str = "Trade update") -> None:
+def push_bot_update(bot_cfg: dict, commit_message: str) -> None:
     """
-    Pousse docs/status.json, trades_history.csv et README.md sur GitHub
-    uniquement lorsqu'un trade est exécuté ou à la clôture de la session.
+    Pousse uniquement les 2 fichiers propres au bot (docs/status_<id>.json et data/trades_<id>.csv)
+    avec retry + git pull --rebase pour éviter tout conflit entre les 4 bots parallèles.
     """
     if os.getenv("GITHUB_ACTIONS") != "true":
         return
+
+    status_path = bot_cfg["status_json_path"]
+    csv_path = bot_cfg["csv_path"]
+
     try:
         subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=False)
         subprocess.run(
             ["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"],
             check=False,
         )
-        subprocess.run(
-            ["git", "add", config.STATUS_JSON_PATH, config.TRADES_CSV_PATH, config.README_PATH],
-            check=False,
-        )
+        subprocess.run(["git", "add", status_path, csv_path], check=False)
         diff = subprocess.run(["git", "diff", "--staged", "--quiet"], check=False)
-        if diff.returncode != 0:
-            subprocess.run(["git", "commit", "-m", commit_message], check=False)
+        if diff.returncode == 0:
+            return
+
+        subprocess.run(["git", "commit", "-m", commit_message], check=False)
+
+        for attempt in range(1, 5):
             subprocess.run(["git", "pull", "--rebase", "--autostash"], check=False)
             res = subprocess.run(["git", "push"], capture_output=True, text=True, check=False)
-            if res.returncode != 0:
-                logger.warning("Échec git push : %s", res.stderr.strip())
-            else:
-                logger.info("Synchronisation GitHub réussie (%s).", commit_message)
+            if res.returncode == 0:
+                logger.info("[%s] Sync GitHub OK (%s).", bot_cfg["bot_id"], commit_message)
+                return
+            logger.warning("[%s] Tentative push %d/4 rejetée, nouvelle tentative...", bot_cfg["bot_id"], attempt)
+            time.sleep(2 * attempt)
     except Exception as exc:
-        logger.warning("Erreur lors de la synchronisation GitHub : %s", exc)
-
-
-def build_dashboard_markdown() -> str:
-    now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
-    header_line = "*Dernière mise à jour : " + now_str + "*"
-
-    if not os.path.exists(config.TRADES_CSV_PATH):
-        return header_line + " — Aucun historique disponible."
-
-    df = pd.read_csv(config.TRADES_CSV_PATH)
-    if df.empty:
-        return (
-            header_line
-            + "\n\nAucune transaction enregistrée pour le moment (le bot a surveillé le marché sans signal valide)."
-        )
-
-    sells = df[df["side"] == "SELL"].copy()
-    buys = df[df["side"] == "BUY"].copy()
-
-    total_closed = len(sells)
-    total_fees = float(df["fee_eur"].sum())
-    total_slippage = float(df["slippage_eur"].sum())
-    total_net_pnl = float(sells["net_pnl_eur"].sum()) if total_closed > 0 else 0.0
-
-    wins = sells[sells["net_pnl_eur"] > 0]
-    losses = sells[sells["net_pnl_eur"] < 0]
-    win_rate = (len(wins) / total_closed * 100.0) if total_closed > 0 else 0.0
-    best_trade = float(sells["net_pnl_eur"].max()) if total_closed > 0 else 0.0
-    worst_trade = float(sells["net_pnl_eur"].min()) if total_closed > 0 else 0.0
-    last_capital = float(df.iloc[-1]["capital_after_eur"])
-    sessions_count = df["session_id"].nunique()
-
-    lines = [
-        header_line,
-        "",
-        "### Résumé global",
-        "| Indicateur | Valeur |",
-        "| :--- | :--- |",
-        f"| **Sessions avec activité** | {sessions_count} |",
-        f"| **Ordres exécutés** | {len(buys)} achats / {total_closed} ventes clôturées |",
-        f"| **Taux de réussite (Win Rate)** | {win_rate:.1f} % ({len(wins)} gagnants / {len(losses)} perdants) |",
-        f"| **PnL net cumulé (après frais)** | **{total_net_pnl:+.2f} €** |",
-        f"| **Dernier capital enregistré** | {last_capital:.2f} € |",
-        f"| **Frais + Slippage cumulés** | {total_fees + total_slippage:.2f} € ({total_fees:.2f} € frais + {total_slippage:.2f} € slippage) |",
-        f"| **Meilleur / Pire trade** | {best_trade:+.2f} € / {worst_trade:+.2f} € |",
-        "",
-        "### Historique des 15 dernières opérations",
-        "| Date (UTC) | Paire | Sens | Prix | Montant (€) | Frais (€) | PnL Net (€) | Motif |",
-        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
-    ]
-
-    recent = df.tail(15).iloc[::-1]
-    for _, row in recent.iterrows():
-        ts = str(row["timestamp_utc"])[:16].replace("T", " ")
-        side_label = "🟢 ACHAT" if row["side"] == "BUY" else "🔴 VENTE"
-        pnl_val = float(row["net_pnl_eur"])
-        pnl_str = f"**{pnl_val:+.2f} €**" if row["side"] == "SELL" else "-"
-        lines.append(
-            f"| {ts} | {row['symbol']} | {side_label} | {float(row['price']):.2f} | "
-            f"{float(row['gross_value_eur']):.2f} € | {float(row['fee_eur']):.3f} € | {pnl_str} | `{row['reason']}` |"
-        )
-
-    return "\n".join(lines)
-
-
-def update_readme() -> None:
-    dashboard_md = build_dashboard_markdown()
-    block = f"{START_MARKER}\n{dashboard_md}\n{END_MARKER}"
-
-    if os.path.exists(config.README_PATH):
-        with open(config.README_PATH, "r", encoding="utf-8") as f:
-            content = f.read()
-    else:
-        content = f"# Mon Bot Crypto (Paper Trading)\n\n## Dernier rapport de suivi\n{block}\n"
-
-    if START_MARKER in content and END_MARKER in content:
-        before = content.split(START_MARKER)[0]
-        after = content.split(END_MARKER)[1]
-        new_content = f"{before}{block}{after}"
-    else:
-        new_content = f"{content.rstrip()}\n\n## Dernier rapport de suivi\n{block}\n"
-
-    with open(config.README_PATH, "w", encoding="utf-8") as f:
-        f.write(new_content)
+        logger.warning("[%s] Erreur synchronisation GitHub : %s", bot_cfg["bot_id"], exc)

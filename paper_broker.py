@@ -1,5 +1,5 @@
 """
-Simulateur d'exécution (Paper Broker) avec frais, slippage et écriture dans trades_history.csv.
+Simulateur d'exécution (Paper Broker) par bot avec CSV dédié.
 """
 
 import csv
@@ -9,16 +9,18 @@ import config
 
 
 class PaperBroker:
-    def __init__(self, session_id: str, initial_capital: float = config.INITIAL_CAPITAL_EUR):
+    def __init__(self, session_id: str, csv_path: str, initial_capital: float = config.INITIAL_CAPITAL_EUR):
         if config.MODE != "PAPER":
             raise ValueError("Sécurité : ce broker n'accepte que MODE = 'PAPER'.")
 
         self.session_id = session_id
+        self.csv_path = csv_path
         self.cash_eur = float(initial_capital)
         self.positions: dict[str, dict] = {}
         self._ensure_csv_header()
 
     def _ensure_csv_header(self) -> None:
+        os.makedirs(os.path.dirname(self.csv_path), exist_ok=True)
         headers = [
             "timestamp_utc",
             "session_id",
@@ -33,13 +35,13 @@ class PaperBroker:
             "capital_after_eur",
             "reason",
         ]
-        if not os.path.exists(config.TRADES_CSV_PATH) or os.path.getsize(config.TRADES_CSV_PATH) == 0:
-            with open(config.TRADES_CSV_PATH, mode="w", newline="", encoding="utf-8") as f:
+        if not os.path.exists(self.csv_path) or os.path.getsize(self.csv_path) == 0:
+            with open(self.csv_path, mode="w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow(headers)
 
     def _append_csv(self, row: list) -> None:
-        with open(config.TRADES_CSV_PATH, mode="a", newline="", encoding="utf-8") as f:
+        with open(self.csv_path, mode="a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(row)
 
