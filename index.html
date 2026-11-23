@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Bot Crypto — Suivi en Direct</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --blue: #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 1.5rem; }
+    .badge {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: #1d4ed8;
+    }
+    .badge.running { background: #15803d; }
+    .badge.idle { background: #475569; }
+    .meta { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .card h2 {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+    .value { font-size: 1.6rem; font-weight: 700; }
+    .pos { color: var(--green); }
+    .neg { color: var(--red); }
+    .section { margin-bottom: 24px; }
+    .section h3 { margin-bottom: 12px; font-size: 1.1rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    th { color: var(--muted); font-weight: 600; background: rgba(15, 23, 42, 0.4); }
+    tr:last-child td { border-bottom: none; }
+    .empty { color: var(--muted); font-style: italic; padding: 16px; }
+    canvas { max-height: 280px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🤖 Mon Bot Crypto — Suivi Live</h1>
+      <div class="meta" id="lastUpdate">Chargement des données...</div>
+    </div>
+    <div>
+      <span class="badge idle" id="statusBadge">EN ATTENTE</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Capital Total (Equity)</h2>
+      <div class="value" id="equityVal">100.00 €</div>
+    </div>
+    <div class="card">
+      <h2>Cash Disponible</h2>
+      <div class="value" id="cashVal">100.00 €</div>
+    </div>
+    <div class="card">
+      <h2>PnL Session</h2>
+      <div class="value" id="pnlVal">+0.00 €</div>
+    </div>
+    <div class="card">
+      <h2>Trades Session</h2>
+      <div class="value" id="tradesVal">0 / 3</div>
+    </div>
+  </div>
+
+  <div class="card section">
+    <h3>📈 Évolution du capital (minute par minute)</h3>
+    <canvas id="equityChart"></canvas>
+  </div>
+
+  <div class="section">
+    <h3>📡 Prix surveillés &amp; Positions ouvertes</h3>
+    <div id="positionsContainer" class="card">
+      <div class="empty">Aucune position ouverte actuellement.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>🧾 Derniers ordres exécutés</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Date (UTC)</th>
+          <th>Paire</th>
+          <th>Sens</th>
+          <th>Prix</th>
+          <th>Montant</th>
+          <th>Frais</th>
+          <th>PnL Net</th>
+          <th>Motif</th>
+        </tr>
+      </thead>
+      <tbody id="tradesBody">
+        <tr><td colspan="8" class="empty">Aucun trade enregistré pour le moment.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let chartInstance = null;
+
+    function fmtEur(v) {
+      const n = Number(v || 0);
+      return n.toFixed(2) + " €";
+    }
+
+    function fmtSignedEur(v) {
+      const n = Number(v || 0);
+      return (n >= 0 ? "+" : "") + n.toFixed(2) + " €";
+    }
+
+    async function refreshData() {
+      try {
+        const res = await fetch("./status.json?t=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById("lastUpdate").textContent =
+          "Dernière mise à jour : " + (data.updated_at_utc || "-") + " (actualisation auto toutes les 30s)";
+
+        const badge = document.getElementById("statusBadge");
+        badge.textContent = data.status === "RUNNING" ? "EN COURS (LIVE)" : "TERMINÉ / EN ATTENTE";
+        badge.className = "badge " + (data.status === "RUNNING" ? "running" : "idle");
+
+        document.getElementById("equityVal").textContent = fmtEur(data.equity_eur);
+        document.getElementById("cashVal").textContent = fmtEur(data.cash_eur);
+
+        const pnlEl = document.getElementById("pnlVal");
+        const pnl = Number(data.session_pnl_eur || 0);
+        pnlEl.textContent = fmtSignedEur(pnl);
+        pnlEl.className = "value " + (pnl >= 0 ? "pos" : "neg");
+
+        document.getElementById("tradesVal").textContent =
+          (data.trades_session ?? 0) + " / " + (data.max_trades_session ?? 3);
+
+        // Prix et positions
+        const posDiv = document.getElementById("positionsContainer");
+        const pricesHtml = Object.entries(data.prices || {})
+          .map(([sym, px]) => `<strong>${sym}</strong> : ${Number(px).toFixed(2)} €`)
+          .join(" &nbsp;|&nbsp; ");
+
+        let openHtml = "<div class='empty'>Aucune position ouverte actuellement.</div>";
+        if (data.open_positions && data.open_positions.length > 0) {
+          openHtml = data.open_positions.map(p => `
+            <div style="margin-top:10px; padding-top:10px; border-top:1px solid #334155;">
+              🟢 <strong>${p.symbol}</strong> — Entrée : ${Number(p.entry_price).toFixed(2)} € |
+              Actuel : ${Number(p.current_price).toFixed(2)} € |
+              SL : ${Number(p.stop_loss).toFixed(2)} € |
+              TP : ${Number(p.take_profit).toFixed(2)} € |
+              PnL latent : <strong class="${p.unrealized_pnl_eur >= 0 ? 'pos' : 'neg'}">${fmtSignedEur(p.unrealized_pnl_eur)}</strong>
+            </div>
+          `).join("");
+        }
+        posDiv.innerHTML = `<div>${pricesHtml || "En attente des cours..."}</div>${openHtml}`;
+
+        // Graphique
+        const curve = data.equity_curve || [];
+        const labels = curve.map(pt => pt.time);
+        const values = curve.map(pt => pt.equity);
+
+        const ctx = document.getElementById("equityChart").getContext("2d");
+        if (!chartInstance) {
+          chartInstance = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels,
+              datasets: [{
+                label: "Capital (€)",
+                data: values,
+                borderColor: "#38bdf8",
+                backgroundColor: "rgba(56, 189, 248, 0.15)",
+                fill: true,
+                tension: 0.25,
+                pointRadius: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { labels: { color: "#f8fafc" } } },
+              scales: {
+                x: { ticks: { color: "#94a3b8" }, grid: { color: "#334155" } },
+                y: { ticks: { color: "#94a3b8" }, grid: { color: "#334155" } }
+              }
+            }
+          });
+        } else {
+          chartInstance.data.labels = labels;
+          chartInstance.data.datasets[0].data = values;
+          chartInstance.update();
+        }
+
+        // Tableau des trades
+        const tbody = document.getElementById("tradesBody");
+        const trades = data.recent_trades || [];
+        if (trades.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="empty">Aucun trade enregistré pour le moment.</td></tr>';
+        } else {
+          tbody.innerHTML = trades.map(t => {
+            const isBuy = t.side === "BUY";
+            const pnlCell = isBuy
+              ? "-"
+              : `<strong class="${Number(t.net_pnl_eur) >= 0 ? 'pos' : 'neg'}">${fmtSignedEur(t.net_pnl_eur)}</strong>`;
+            return `
+              <tr>
+                <td>${t.timestamp_utc}</td>
+                <td><strong>${t.symbol}</strong></td>
+                <td>${isBuy ? "🟢 ACHAT" : "🔴 VENTE"}</td>
+                <td>${Number(t.price).toFixed(2)} €</td>
+                <td>${Number(t.gross_value_eur).toFixed(2)} €</td>
+                <td>${Number(t.fee_eur).toFixed(3)} €</td>
+                <td>${pnlCell}</td>
+                <td><code>${t.reason}</code></td>
+              </tr>
+            `;
+          }).join("");
+        }
+      } catch (e) {
+        console.error("Erreur rafraîchissement:", e);
+      }
+    }
+
+    refreshData();
+    setInterval(refreshData, 30000);
+  </script>
+</body>
+</html>

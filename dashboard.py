@@ -1,15 +1,113 @@
 """
-Génère automatiquement un tableau de bord de suivi dans README.md à partir de trades_history.csv.
-Visible directement sur la page d'accueil du dépôt GitHub (y compris sur téléphone).
+Met à jour README.md et docs/status.json (pour le site web GitHub Pages en temps réel)
+et pousse les données vers GitHub à chaque minute.
 """
 
 from datetime import datetime, timezone
+import json
 import os
+import subprocess
 import pandas as pd
 import config
 
 START_MARKER = "<!-- DASHBOARD_START -->"
 END_MARKER = "<!-- DASHBOARD_END -->"
+
+
+def _load_recent_trades(limit: int = 20) -> list[dict]:
+    if not os.path.exists(config.TRADES_CSV_PATH):
+        return []
+    df = pd.read_csv(config.TRADES_CSV_PATH)
+    if df.empty:
+        return []
+    recent = df.tail(limit).iloc[::-1]
+    rows = []
+    for _, r in recent.iterrows():
+        rows.append(
+            {
+                "timestamp_utc": str(r["timestamp_utc"])[:19].replace("T", " "),
+                "symbol": str(r["symbol"]),
+                "side": str(r["side"]),
+                "price": float(r["price"]),
+                "gross_value_eur": float(r["gross_value_eur"]),
+                "fee_eur": float(r["fee_eur"]),
+                "net_pnl_eur": float(r["net_pnl_eur"]),
+                "reason": str(r["reason"]),
+            }
+        )
+    return rows
+
+
+def update_web_status(
+    session_id: str,
+    status: str,
+    cash_eur: float,
+    equity_eur: float,
+    trades_session: int,
+    prices: dict[str, float],
+    positions: dict[str, dict],
+    equity_curve: list[dict],
+) -> None:
+    os.makedirs(os.path.dirname(config.STATUS_JSON_PATH), exist_ok=True)
+    now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC")
+
+    open_pos_list = []
+    for sym, pos in positions.items():
+        cur_px = float(prices.get(sym, pos["entry_price"]))
+        unrealized = (cur_px - float(pos["entry_price"])) * float(pos["amount"])
+        open_pos_list.append(
+            {
+                "symbol": sym,
+                "entry_price": float(pos["entry_price"]),
+                "current_price": cur_px,
+                "stop_loss": float(pos["stop_loss"]),
+                "take_profit": float(pos["take_profit"]),
+                "unrealized_pnl_eur": round(unrealized, 4),
+            }
+        )
+
+    payload = {
+        "updated_at_utc": now_str,
+        "session_id": session_id,
+        "status": status,
+        "cash_eur": round(float(cash_eur), 4),
+        "equity_eur": round(float(equity_eur), 4),
+        "session_pnl_eur": round(float(equity_eur) - config.INITIAL_CAPITAL_EUR, 4),
+        "trades_session": int(trades_session),
+        "max_trades_session": int(config.MAX_TRADES_PER_SESSION),
+        "prices": {k: round(float(v), 4) for k, v in prices.items()},
+        "open_positions": open_pos_list,
+        "equity_curve": equity_curve[-150:],
+        "recent_trades": _load_recent_trades(20),
+    }
+
+    with open(config.STATUS_JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+
+def push_live_update() -> None:
+    """
+    Pousse docs/status.json, trades_history.csv et README.md sur GitHub
+    pour alimenter le site GitHub Pages minute par minute.
+    """
+    if os.getenv("GITHUB_ACTIONS") != "true":
+        return
+    try:
+        subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=False)
+        subprocess.run(
+            ["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"],
+            check=False,
+        )
+        subprocess.run(
+            ["git", "add", config.STATUS_JSON_PATH, config.TRADES_CSV_PATH, config.README_PATH],
+            check=False,
+        )
+        diff = subprocess.run(["git", "diff", "--staged", "--quiet"], check=False)
+        if diff.returncode != 0:
+            subprocess.run(["git", "commit", "-m", "Live status update"], check=False)
+            subprocess.run(["git", "push"], check=False)
+    except Exception:
+        pass
 
 
 def build_dashboard_markdown() -> str:
@@ -21,7 +119,9 @@ def build_dashboard_markdown() -> str:
     df = pd.read_csv(config.TRADES_CSV_PATH)
     if df.empty:
         return (
-            f"*Dernière mise à jour : {now_str}*\n\n"
+            f"*Dernière mise à jour : {now_str}*
+
+"
             "Aucune transaction enregistrée pour le moment (le bot a surveillé le marché sans signal valide)."
         )
 
@@ -71,25 +171,36 @@ def build_dashboard_markdown() -> str:
             f"{float(row['gross_value_eur']):.2f} € | {float(row['fee_eur']):.3f} € | {pnl_str} | `{row['reason']}` |"
         )
 
-    return "\n".join(lines)
+    return "
+".join(lines)
 
 
 def update_readme() -> None:
     dashboard_md = build_dashboard_markdown()
-    block = f"{START_MARKER}\n{dashboard_md}\n{END_MARKER}"
+    block = f"{START_MARKER}
+{dashboard_md}
+{END_MARKER}"
 
     if os.path.exists(config.README_PATH):
         with open(config.README_PATH, "r", encoding="utf-8") as f:
             content = f.read()
     else:
-        content = f"# Mon Bot Crypto (Paper Trading)\n\n## Dernier rapport de suivi\n{block}\n"
+        content = f"# Mon Bot Crypto (Paper Trading)
+
+## Dernier rapport de suivi
+{block}
+"
 
     if START_MARKER in content and END_MARKER in content:
         before = content.split(START_MARKER)[0]
         after = content.split(END_MARKER)[1]
         new_content = f"{before}{block}{after}"
     else:
-        new_content = f"{content.rstrip()}\n\n## Dernier rapport de suivi\n{block}\n"
+        new_content = f"{content.rstrip()}
+
+## Dernier rapport de suivi
+{block}
+"
 
     with open(config.README_PATH, "w", encoding="utf-8") as f:
         f.write(new_content)

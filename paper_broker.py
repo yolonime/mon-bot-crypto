@@ -15,7 +15,6 @@ class PaperBroker:
 
         self.session_id = session_id
         self.cash_eur = float(initial_capital)
-        # Dictionnaire des positions ouvertes : {symbol: position_dict}
         self.positions: dict[str, dict] = {}
         self._ensure_csv_header()
 
@@ -45,9 +44,6 @@ class PaperBroker:
             writer.writerow(row)
 
     def total_equity(self, current_prices: dict[str, float]) -> float:
-        """
-        Calcule le capital total (cash + valeur actuelle des positions ouvertes).
-        """
         positions_value = 0.0
         for symbol, pos in self.positions.items():
             px = current_prices.get(symbol, pos["entry_price"])
@@ -63,9 +59,6 @@ class PaperBroker:
         take_profit: float,
         reason: str = "SIGNAL_BUY",
     ) -> dict | None:
-        """
-        Simule un achat au comptant (Spot) en appliquant slippage défavorable et frais.
-        """
         exec_price = market_price * (1.0 + config.SLIPPAGE_RATE)
         gross_value = amount * exec_price
         fee_eur = gross_value * config.FEE_RATE
@@ -108,10 +101,6 @@ class PaperBroker:
         return position
 
     def close_long(self, symbol: str, market_price: float, reason: str) -> float | None:
-        """
-        Simule la vente d'une position ouverte en appliquant slippage défavorable et frais.
-        Retourne le PnL net du trade en euros.
-        """
         pos = self.positions.get(symbol)
         if not pos:
             return None

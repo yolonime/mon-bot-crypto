@@ -1,6 +1,6 @@
 """
 Point d'entrée principal de la session de trading simulé (durée configurable, ex: 120 minutes).
-Conçu pour tourner proprement sur GitHub Actions sans laisser de position ouverte en fin de session.
+Met à jour le site web GitHub Pages (docs/status.json) minute par minute.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -11,7 +11,7 @@ import ccxt
 import pandas as pd
 
 import config
-from dashboard import update_readme
+from dashboard import push_live_update, update_readme, update_web_status
 from notifier import send_telegram
 from paper_broker import PaperBroker
 from risk_manager import RiskManager
@@ -73,6 +73,7 @@ def run_session() -> None:
     risk_manager = RiskManager(initial_session_capital=config.INITIAL_CAPITAL_EUR)
 
     last_prices: dict[str, float] = {}
+    equity_curve: list[dict] = []
 
     try:
         while True:
@@ -183,7 +184,22 @@ def run_session() -> None:
                             f"🟢 <b>ACHAT SPOT ({symbol})</b>\nPrix : {opened['entry_price']:.2f} € | Montant : {notional_eur:.2f} €\nStop-Loss : {signal['stop_loss']:.2f} €\nTake-Profit : {signal['take_profit']:.2f} €"
                         )
 
+            # 5. Mise à jour du site web minute par minute
             equity_after = broker.total_equity(current_prices)
+            equity_curve.append({"time": now.strftime("%H:%M"), "equity": round(equity_after, 4)})
+            update_readme()
+            update_web_status(
+                session_id=session_id,
+                status="RUNNING",
+                cash_eur=broker.cash_eur,
+                equity_eur=equity_after,
+                trades_session=risk_manager.trades_this_session,
+                prices=current_prices,
+                positions=broker.positions,
+                equity_curve=equity_curve,
+            )
+            push_live_update()
+
             logger.info(
                 "État | Cash=%.2f € | Equity=%.2f € | Positions=%d | Trades session=%d/%d",
                 broker.cash_eur,
@@ -193,21 +209,31 @@ def run_session() -> None:
                 config.MAX_TRADES_PER_SESSION,
             )
 
-            # Attendre jusqu'à la prochaine boucle sans dépasser end_time
             remaining_seconds = (end_time - datetime.now(timezone.utc)).total_seconds()
             if remaining_seconds <= 0:
                 break
             time.sleep(min(config.LOOP_SLEEP_SECONDS, remaining_seconds))
 
     finally:
-        # Sécurité ultime : jamais laisser de position ouverte à la sortie du script
         if broker.positions:
             logger.info("Sécurité finale : fermeture des positions restantes avant arrêt.")
             close_all_positions(broker, risk_manager, last_prices, reason="FINAL_SHUTDOWN")
 
-        update_readme()
-
         final_equity = broker.total_equity(last_prices)
+        equity_curve.append({"time": datetime.now(timezone.utc).strftime("%H:%M"), "equity": round(final_equity, 4)})
+        update_readme()
+        update_web_status(
+            session_id=session_id,
+            status="IDLE",
+            cash_eur=broker.cash_eur,
+            equity_eur=final_equity,
+            trades_session=risk_manager.trades_this_session,
+            prices=last_prices,
+            positions=broker.positions,
+            equity_curve=equity_curve,
+        )
+        push_live_update()
+
         net_session_pnl = final_equity - config.INITIAL_CAPITAL_EUR
         logger.info(
             "=== Fin session %s | Equity finale : %.2f € | PnL net : %+.2f € ===",

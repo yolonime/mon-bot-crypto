@@ -62,3 +62,4 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 # Fichiers de sortie
 TRADES_CSV_PATH = "trades_history.csv"
 README_PATH = "README.md"
+STATUS_JSON_PATH = "docs/status.json"

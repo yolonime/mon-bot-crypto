@@ -17,9 +17,6 @@ class RiskManager:
         self.kill_reason = ""
 
     def check_kill_switch(self, current_capital: float) -> tuple[bool, str]:
-        """
-        Vérifie si la session doit être arrêtée immédiatement.
-        """
         if self.kill_switch_triggered:
             return True, self.kill_reason
 
@@ -47,9 +44,6 @@ class RiskManager:
         closing_soon: bool,
         now: datetime | None = None,
     ) -> tuple[bool, str]:
-        """
-        Vérifie toutes les conditions avant d'autoriser l'ouverture d'un trade.
-        """
         if now is None:
             now = datetime.now(timezone.utc)
 
@@ -82,10 +76,6 @@ class RiskManager:
         entry_price: float,
         stop_loss: float,
     ) -> tuple[float, float, str]:
-        """
-        Calcule la quantité d'actif à acheter selon le risque maximum autorisé (ex: 1 % du capital).
-        Retourne (amount, notional_eur, message).
-        """
         risk_distance = entry_price - stop_loss
         if risk_distance <= 0 or entry_price <= 0:
             return 0.0, 0.0, "Distance au Stop-Loss invalide"
@@ -94,7 +84,6 @@ class RiskManager:
         amount = max_risk_eur / risk_distance
         notional_eur = amount * entry_price
 
-        # Si la taille calculée dépasse le capital disponible, on plafonne au capital disponible
         if notional_eur > current_capital:
             notional_eur = current_capital
             amount = notional_eur / entry_price

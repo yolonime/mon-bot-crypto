@@ -1,8 +1,8 @@
 # Mon Bot Crypto (Paper Trading)
 
-Suivi automatique des sessions de trading simulé sur GitHub Actions.
+Suivi en direct minute par minute disponible sur votre page **GitHub Pages** (`docs/index.html`).
 
 ## Dernier rapport de suivi
 <!-- DASHBOARD_START -->
-*Aucune session exécutée pour le moment. Lancez le workflow dans l'onglet **Actions** pour générer votre premier tableau de bord.*
+*Aucune session exécutée pour le moment.*
 <!-- DASHBOARD_END -->

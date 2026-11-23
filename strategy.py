@@ -8,18 +8,12 @@ import config
 
 
 def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Ajoute les colonnes EMA, RSI, ATR et moyenne de volume au DataFrame OHLCV.
-    On attend un DataFrame avec colonnes : ['timestamp', 'open', 'high', 'low', 'close', 'volume'].
-    """
     data = df.copy()
 
-    # Moyennes mobiles exponentielles (EMA)
     data["ema_fast"] = data["close"].ewm(span=config.EMA_FAST, adjust=False).mean()
     data["ema_slow"] = data["close"].ewm(span=config.EMA_SLOW, adjust=False).mean()
     data["ema_trend"] = data["close"].ewm(span=config.EMA_TREND, adjust=False).mean()
 
-    # RSI (14 périodes)
     delta = data["close"].diff()
     gain = delta.clip(lower=0.0)
     loss = -delta.clip(upper=0.0)
@@ -29,10 +23,8 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     data["rsi"] = 100.0 - (100.0 / (1.0 + rs))
     data["rsi"] = data["rsi"].fillna(50.0)
 
-    # Moyenne du volume sur 20 bougies
     data["vol_sma"] = data["volume"].rolling(window=config.VOLUME_SMA_PERIOD).mean()
 
-    # ATR (Average True Range) pour calibrer Stop-Loss et Take-Profit selon la volatilité
     prev_close = data["close"].shift(1)
     tr = pd.concat(
         [
@@ -48,31 +40,18 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def check_buy_signal(df: pd.DataFrame) -> dict | None:
-    """
-    Évalue la dernière bougie CLÔTURÉE (avant-dernière ligne du DataFrame, index -2)
-    pour éviter les faux signaux sur une bougie encore en formation.
-    Retourne un dictionnaire avec prix d'entrée, stop_loss et take_profit si signal valide, sinon None.
-    """
     if len(df) < max(config.EMA_TREND, config.ATR_PERIOD, config.VOLUME_SMA_PERIOD) + 3:
         return None
 
-    # On utilise -2 (dernière bougie clôturée) et -3 (bougie précédente)
     prev = df.iloc[-3]
     curr = df.iloc[-2]
 
     if pd.isna(curr["ema_trend"]) or pd.isna(curr["atr"]) or pd.isna(curr["vol_sma"]) or curr["atr"] <= 0:
         return None
 
-    # 1. Filtre de tendance : clôture au-dessus de l'EMA 50
     trend_ok = curr["close"] > curr["ema_trend"]
-
-    # 2. Croisement haussier : EMA rapide passe au-dessus de EMA lente
     crossover_ok = (prev["ema_fast"] <= prev["ema_slow"]) and (curr["ema_fast"] > curr["ema_slow"])
-
-    # 3. Filtre momentum : RSI entre RSI_MIN et RSI_MAX
     rsi_ok = config.RSI_MIN <= curr["rsi"] <= config.RSI_MAX
-
-    # 4. Filtre volume : volume supérieur à la moyenne des 20 bougies
     volume_ok = curr["volume"] > curr["vol_sma"]
 
     if trend_ok and crossover_ok and rsi_ok and volume_ok:
@@ -98,10 +77,6 @@ def check_buy_signal(df: pd.DataFrame) -> dict | None:
 
 
 def check_exit_condition(position: dict, current_price: float) -> str | None:
-    """
-    Vérifie si une position ouverte doit être fermée sur Stop-Loss ou Take-Profit.
-    Retourne le motif ('STOP_LOSS' ou 'TAKE_PROFIT') ou None.
-    """
     if current_price <= position["stop_loss"]:
         return "STOP_LOSS"
     if current_price >= position["take_profit"]:
