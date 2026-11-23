@@ -1,0 +1,18 @@
+{
+  "bot_id": "bot4",
+  "bot_name": "Bot 4 — TP Serré (R/R 1.5)",
+  "bot_description": "Prend ses profits plus vite (TP = 1.5x le risque) sur la base EMA 9/21 & RSI 45–65.",
+  "params": { "ema_fast": 9, "ema_slow": 21, "ema_trend": 50, "rsi_min": 45.0, "rsi_max": 65.0, "atr_sl_mult": 1.5, "rr_ratio": 1.5 },
+  "updated_at_utc": "En attente de session...",
+  "session_id": "-",
+  "status": "IDLE",
+  "cash_eur": 100.0,
+  "equity_eur": 100.0,
+  "session_pnl_eur": 0.0,
+  "trades_session": 0,
+  "max_trades_session": 3,
+  "prices": {},
+  "open_positions": [],
+  "equity_curve": [],
+  "recent_trades": []
+}
