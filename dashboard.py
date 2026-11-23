@@ -121,17 +121,16 @@ def push_live_update(commit_message: str = "Trade update") -> None:
 
 def build_dashboard_markdown() -> str:
     now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
+    header_line = "*Dernière mise à jour : " + now_str + "*"
 
     if not os.path.exists(config.TRADES_CSV_PATH):
-        return f"*Dernière mise à jour : {now_str} — Aucun historique disponible.*"
+        return header_line + " — Aucun historique disponible."
 
     df = pd.read_csv(config.TRADES_CSV_PATH)
     if df.empty:
         return (
-            f"*Dernière mise à jour : {now_str}*
-
-"
-            "Aucune transaction enregistrée pour le moment (le bot a surveillé le marché sans signal valide)."
+            header_line
+            + "\n\nAucune transaction enregistrée pour le moment (le bot a surveillé le marché sans signal valide)."
         )
 
     sells = df[df["side"] == "SELL"].copy()
@@ -151,7 +150,7 @@ def build_dashboard_markdown() -> str:
     sessions_count = df["session_id"].nunique()
 
     lines = [
-        f"*Dernière mise à jour : {now_str}*",
+        header_line,
         "",
         "### Résumé global",
         "| Indicateur | Valeur |",
@@ -180,36 +179,25 @@ def build_dashboard_markdown() -> str:
             f"{float(row['gross_value_eur']):.2f} € | {float(row['fee_eur']):.3f} € | {pnl_str} | `{row['reason']}` |"
         )
 
-    return "
-".join(lines)
+    return "\n".join(lines)
 
 
 def update_readme() -> None:
     dashboard_md = build_dashboard_markdown()
-    block = f"{START_MARKER}
-{dashboard_md}
-{END_MARKER}"
+    block = f"{START_MARKER}\n{dashboard_md}\n{END_MARKER}"
 
     if os.path.exists(config.README_PATH):
         with open(config.README_PATH, "r", encoding="utf-8") as f:
             content = f.read()
     else:
-        content = f"# Mon Bot Crypto (Paper Trading)
-
-## Dernier rapport de suivi
-{block}
-"
+        content = f"# Mon Bot Crypto (Paper Trading)\n\n## Dernier rapport de suivi\n{block}\n"
 
     if START_MARKER in content and END_MARKER in content:
         before = content.split(START_MARKER)[0]
         after = content.split(END_MARKER)[1]
         new_content = f"{before}{block}{after}"
     else:
-        new_content = f"{content.rstrip()}
-
-## Dernier rapport de suivi
-{block}
-"
+        new_content = f"{content.rstrip()}\n\n## Dernier rapport de suivi\n{block}\n"
 
     with open(config.README_PATH, "w", encoding="utf-8") as f:
         f.write(new_content)
