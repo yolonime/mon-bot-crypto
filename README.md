@@ -1,10 +1,8 @@
 # Mon Bot Crypto (Paper Trading)
 
-Suivi en direct (bougies, indicateurs techniques et radar de décision) disponible sur votre page **GitHub Pages** (`docs/index.html`).
+Suivi graphique en direct (bougies 5m, volume, RSI, EMA 9/21/50, radar de décision et portefeuille) sur votre page **GitHub Pages** (`docs/index.html`).
 
 ## Dernier rapport de suivi
 <!-- DASHBOARD_START -->
-*Dernière mise à jour : 23/11/2026 13:00 UTC*
-
-Aucune transaction enregistrée pour le moment (le bot a surveillé le marché sans signal valide).
+*Aucune session exécutée pour le moment.*
 <!-- DASHBOARD_END -->

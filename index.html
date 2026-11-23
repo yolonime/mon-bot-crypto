@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mon Bot Crypto — Terminal Live</title>
+  <title>Mon Bot Crypto — Graphiques &amp; Suivi Live</title>
   <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -26,7 +26,7 @@
       background: var(--bg);
       color: var(--text);
       padding: 20px;
-      max-width: 1240px;
+      max-width: 1280px;
       margin: 0 auto;
     }
     header {
@@ -41,6 +41,22 @@
     }
     h1 { font-size: 1.45rem; }
     .meta { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      background: var(--card-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+    .btn:hover { border-color: var(--blue); }
     .badge {
       padding: 6px 14px;
       border-radius: 999px;
@@ -52,17 +68,17 @@
     .badge.idle { background: #334155; color: #cbd5e1; }
     .grid-4 {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
       gap: 14px;
       margin-bottom: 20px;
     }
     .grid-2 {
       display: grid;
-      grid-template-columns: 1.4fr 1fr;
+      grid-template-columns: 1.55fr 1fr;
       gap: 16px;
       margin-bottom: 20px;
     }
-    @media (max-width: 900px) {
+    @media (max-width: 960px) {
       .grid-2 { grid-template-columns: 1fr; }
     }
     .card {
@@ -82,6 +98,7 @@
       font-size: 1.05rem;
       margin-bottom: 12px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
@@ -89,11 +106,9 @@
     .value { font-size: 1.55rem; font-weight: 700; }
     .pos { color: var(--green); }
     .neg { color: var(--red); }
-    .warn { color: var(--amber); }
     .tabs {
       display: flex;
       gap: 8px;
-      margin-bottom: 12px;
     }
     .tab-btn {
       background: var(--card-alt);
@@ -112,9 +127,16 @@
     }
     #candleChart {
       width: 100%;
-      height: 360px;
+      height: 340px;
       border-radius: 8px;
       overflow: hidden;
+    }
+    #rsiChart {
+      width: 100%;
+      height: 150px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 10px;
     }
     .legend-row {
       display: flex;
@@ -195,10 +217,11 @@
 <body>
   <header>
     <div>
-      <h1>🤖 Mon Bot Crypto — Terminal Live &amp; Cerveau</h1>
-      <div class="meta" id="lastUpdate">Chargement des données...</div>
+      <h1>🤖 Mon Bot Crypto — Graphiques &amp; Suivi Live</h1>
+      <div class="meta" id="lastUpdate">Connexion à Kraken &amp; portefeuille...</div>
     </div>
-    <div>
+    <div class="header-actions">
+      <button class="btn" onclick="manualRefresh()">🔄 Actualiser</button>
       <span class="badge idle" id="statusBadge">EN ATTENTE</span>
     </div>
   </header>
@@ -225,34 +248,43 @@
   <div class="grid-2">
     <div class="card">
       <h3>
-        <span>🕯️ Bougies 5m &amp; Moyennes Mobiles</span>
-        <div class="tabs" id="symbolTabs"></div>
+        <span>🕯️ Bougies 5m, Volume &amp; EMA</span>
+        <div class="tabs" id="symbolTabs">
+          <button class="tab-btn active" data-sym="BTC/EUR" onclick="selectSymbol('BTC/EUR')">BTC/EUR</button>
+          <button class="tab-btn" data-sym="ETH/EUR" onclick="selectSymbol('ETH/EUR')">ETH/EUR</button>
+        </div>
       </h3>
       <div id="candleChart"></div>
       <div class="legend-row">
-        <span><i class="dot" style="background:#38bdf8;"></i>EMA 9 (Rapide)</span>
-        <span><i class="dot" style="background:#f59e0b;"></i>EMA 21 (Lente)</span>
-        <span><i class="dot" style="background:#a855f7;"></i>EMA 50 (Tendance)</span>
-        <span><i class="dot" style="background:#ef4444;"></i>Stop-Loss projeté</span>
-        <span><i class="dot" style="background:#22c55e;"></i>Take-Profit projeté</span>
+        <span><i class="dot" style="background:#38bdf8;"></i>EMA 9</span>
+        <span><i class="dot" style="background:#f59e0b;"></i>EMA 21</span>
+        <span><i class="dot" style="background:#a855f7;"></i>EMA 50</span>
+        <span><i class="dot" style="background:#ef4444;"></i>SL projeté</span>
+        <span><i class="dot" style="background:#22c55e;"></i>TP projeté</span>
       </div>
+
+      <h3 style="margin-top:16px; margin-bottom:6px;">
+        <span>📊 RSI(14) — Zone cible achat : 45 à 65</span>
+        <span class="meta" id="rsiLiveLabel">RSI : --</span>
+      </h3>
+      <div id="rsiChart"></div>
     </div>
 
     <div class="card">
       <h3>
-        <span>🧠 Ce que regarde le bot</span>
+        <span>🧠 Radar stratégie (4 critères)</span>
         <span id="scoreBadge" class="pill ko">0 / 4 critères</span>
       </h3>
-      <div class="meta" id="indicatorSummary">En attente des données de marché...</div>
+      <div class="meta" id="indicatorSummary">Chargement des indicateurs...</div>
       <ul class="checklist" id="criteriaList"></ul>
       <div class="prediction-box" id="predictionBox">
-        En attente d'analyse de la dernière bougie clôturée...
+        Analyse du marché en cours...
       </div>
     </div>
   </div>
 
   <div class="card section">
-    <h3>📡 Positions ouvertes &amp; Niveaux surveillés</h3>
+    <h3>📡 Positions ouvertes &amp; Cours live</h3>
     <div id="positionsContainer">
       <div class="empty">Aucune position ouverte actuellement.</div>
     </div>
@@ -285,15 +317,25 @@
   </div>
 
   <script>
-    let latestData = null;
+    const KRAKEN_PAIRS = {
+      "BTC/EUR": "XBTEUR",
+      "ETH/EUR": "ETHEUR"
+    };
+
     let selectedSymbol = "BTC/EUR";
+    let portfolioData = null;
+    let livePrices = {};
     let lwChart = null;
     let candleSeries = null;
+    let volumeSeries = null;
     let ema9Series = null;
     let ema21Series = null;
     let ema50Series = null;
     let slLine = null;
     let tpLine = null;
+
+    let rsiChart = null;
+    let rsiSeries = null;
     let eqChart = null;
 
     function fmtEur(v) { return Number(v || 0).toFixed(2) + " €"; }
@@ -302,26 +344,70 @@
       return (n >= 0 ? "+" : "") + n.toFixed(2) + " €";
     }
 
-    function initCandleChart() {
+    function calcEMA(values, period) {
+      const out = new Array(values.length).fill(null);
+      if (values.length === 0) return out;
+      const k = 2 / (period + 1);
+      let ema = values[0];
+      out[0] = ema;
+      for (let i = 1; i < values.length; i++) {
+        ema = values[i] * k + ema * (1 - k);
+        out[i] = ema;
+      }
+      return out;
+    }
+
+    function calcRSISeries(closes, period = 14) {
+      const out = new Array(closes.length).fill(50);
+      if (closes.length <= period) return out;
+      let gains = 0, losses = 0;
+      for (let i = 1; i <= period; i++) {
+        const diff = closes[i] - closes[i - 1];
+        if (diff > 0) gains += diff;
+        else losses += -diff;
+      }
+      let avgGain = gains / period;
+      let avgLoss = losses / period;
+      out[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+
+      for (let i = period + 1; i < closes.length; i++) {
+        const diff = closes[i] - closes[i - 1];
+        const g = diff > 0 ? diff : 0;
+        const l = diff < 0 ? -diff : 0;
+        avgGain = (avgGain * (period - 1) + g) / period;
+        avgLoss = (avgLoss * (period - 1) + l) / period;
+        out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+      }
+      return out;
+    }
+
+    function calcATR(candles, period = 14) {
+      if (candles.length < period + 1) return 0;
+      const trs = [];
+      for (let i = 1; i < candles.length; i++) {
+        const h = candles[i].high;
+        const l = candles[i].low;
+        const prevC = candles[i - 1].close;
+        trs.push(Math.max(h - l, Math.abs(h - prevC), Math.abs(l - prevC)));
+      }
+      const recent = trs.slice(-period);
+      return recent.reduce((a, b) => a + b, 0) / recent.length;
+    }
+
+    function initCharts() {
       const container = document.getElementById("candleChart");
       lwChart = LightweightCharts.createChart(container, {
-        layout: {
-          background: { color: "#131c31" },
-          textColor: "#cbd5e1",
-        },
-        grid: {
-          vertLines: { color: "#1e293b" },
-          horzLines: { color: "#1e293b" },
-        },
-        timeScale: {
-          timeVisible: true,
-          secondsVisible: false,
-          borderColor: "#263554",
-        },
-        rightPriceScale: {
-          borderColor: "#263554",
-        },
+        layout: { background: { color: "#131c31" }, textColor: "#cbd5e1" },
+        grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } },
+        timeScale: { timeVisible: true, secondsVisible: false, borderColor: "#263554" },
+        rightPriceScale: { borderColor: "#263554" },
         crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      });
+
+      volumeSeries = lwChart.addHistogramSeries({
+        priceFormat: { type: "volume" },
+        priceScaleId: "",
+        scaleMargins: { top: 0.82, bottom: 0 },
       });
 
       candleSeries = lwChart.addCandlestickSeries({
@@ -335,133 +421,235 @@
       ema21Series = lwChart.addLineSeries({ color: "#f59e0b", lineWidth: 2 });
       ema50Series = lwChart.addLineSeries({ color: "#a855f7", lineWidth: 2 });
 
+      const rsiContainer = document.getElementById("rsiChart");
+      rsiChart = LightweightCharts.createChart(rsiContainer, {
+        layout: { background: { color: "#131c31" }, textColor: "#cbd5e1" },
+        grid: { vertLines: { color: "#1e293b" }, horzLines: { color: "#1e293b" } },
+        timeScale: { timeVisible: true, secondsVisible: false, borderColor: "#263554" },
+        rightPriceScale: { borderColor: "#263554" },
+      });
+      rsiSeries = rsiChart.addLineSeries({ color: "#38bdf8", lineWidth: 2 });
+      rsiSeries.createPriceLine({ price: 65, color: "#22c55e", lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, title: "65" });
+      rsiSeries.createPriceLine({ price: 45, color: "#f59e0b", lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, title: "45" });
+
       window.addEventListener("resize", () => {
         lwChart.applyOptions({ width: container.clientWidth });
+        rsiChart.applyOptions({ width: rsiContainer.clientWidth });
       });
     }
 
-    function renderSymbolView(symbol) {
-      selectedSymbol = symbol;
-      if (!latestData || !latestData.market_analysis) return;
+    function selectSymbol(sym) {
+      selectedSymbol = sym;
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.sym === sym);
+      });
+      fetchAndRenderKraken(sym);
+    }
 
-      const tabsEl = document.getElementById("symbolTabs");
-      const symbols = Object.keys(latestData.market_analysis);
-      tabsEl.innerHTML = symbols.map(sym => `
-        <button class="tab-btn ${sym === selectedSymbol ? 'active' : ''}" onclick="renderSymbolView('${sym}')">
-          ${sym}
-        </button>
-      `).join("");
+    async function fetchAndRenderKraken(sym) {
+      const krakenPair = KRAKEN_PAIRS[sym];
+      if (!krakenPair) return;
+      try {
+        const res = await fetch(`https://api.kraken.com/0/public/OHLC?pair=${krakenPair}&interval=5`);
+        const json = await res.json();
+        if (json.error && json.error.length > 0) return;
 
-      const info = latestData.market_analysis[selectedSymbol];
-      if (!info) return;
+        const key = Object.keys(json.result).find(k => k !== "last");
+        const raw = (json.result[key] || []).slice(-120);
+        if (raw.length < 25) return;
 
-      // Mise à jour des bougies & EMA
-      if (info.candles && info.candles.length > 0) {
-        candleSeries.setData(info.candles.map(c => ({
+        const candles = raw.map(r => ({
+          time: Number(r[0]),
+          open: Number(r[1]),
+          high: Number(r[2]),
+          low: Number(r[3]),
+          close: Number(r[4]),
+          volume: Number(r[6]),
+        }));
+
+        const closes = candles.map(c => c.close);
+        const vols = candles.map(c => c.volume);
+        const ema9 = calcEMA(closes, 9);
+        const ema21 = calcEMA(closes, 21);
+        const ema50 = calcEMA(closes, 50);
+        const rsiArr = calcRSISeries(closes, 14);
+        const atr = calcATR(candles, 14);
+
+        const lastIdx = candles.length - 1;
+        const currIdx = candles.length - 2;
+        const prevIdx = candles.length - 3;
+
+        const livePx = closes[lastIdx];
+        const rsi = rsiArr[currIdx];
+        livePrices[sym] = livePx;
+
+        const closeCurr = closes[currIdx];
+        const e9Curr = ema9[currIdx];
+        const e21Curr = ema21[currIdx];
+        const e50Curr = ema50[currIdx];
+        const e9Prev = ema9[prevIdx];
+        const e21Prev = ema21[prevIdx];
+
+        const volCurr = vols[currIdx];
+        const volSma20 = vols.slice(Math.max(0, currIdx - 19), currIdx + 1).reduce((a, b) => a + b, 0) / 20;
+
+        const trendOk = closeCurr > e50Curr;
+        const crossOk = (e9Prev <= e21Prev) && (e9Curr > e21Curr);
+        const rsiOk = rsi >= 45 && rsi <= 65;
+        const volOk = volSma20 > 0 && volCurr > volSma20;
+        const score = [trendOk, crossOk, rsiOk, volOk].filter(Boolean).length;
+
+        const projSl = atr > 0 ? livePx - 1.5 * atr : null;
+        const projTp = atr > 0 ? livePx + 3.0 * atr : null;
+
+        const shown = candles.slice(-60);
+        candleSeries.setData(shown.map(c => ({
           time: c.time, open: c.open, high: c.high, low: c.low, close: c.close
         })));
-        ema9Series.setData(info.candles.filter(c => c.ema9 !== null).map(c => ({ time: c.time, value: c.ema9 })));
-        ema21Series.setData(info.candles.filter(c => c.ema21 !== null).map(c => ({ time: c.time, value: c.ema21 })));
-        ema50Series.setData(info.candles.filter(c => c.ema50 !== null).map(c => ({ time: c.time, value: c.ema50 })));
+        volumeSeries.setData(shown.map(c => ({
+          time: c.time,
+          value: c.volume,
+          color: c.close >= c.open ? "rgba(34, 197, 94, 0.35)" : "rgba(239, 68, 68, 0.35)"
+        })));
+        ema9Series.setData(shown.map((c, idx) => ({ time: c.time, value: ema9[candles.length - 60 + idx] })));
+        ema21Series.setData(shown.map((c, idx) => ({ time: c.time, value: ema21[candles.length - 60 + idx] })));
+        ema50Series.setData(shown.map((c, idx) => ({ time: c.time, value: ema50[candles.length - 60 + idx] })));
+
+        rsiSeries.setData(shown.map((c, idx) => ({ time: c.time, value: rsiArr[candles.length - 60 + idx] })));
+        document.getElementById("rsiLiveLabel").textContent = `RSI(14) : ${rsi.toFixed(1)}`;
 
         if (slLine) { candleSeries.removePriceLine(slLine); slLine = null; }
         if (tpLine) { candleSeries.removePriceLine(tpLine); tpLine = null; }
-
-        if (info.projected_sl) {
+        if (projSl) {
           slLine = candleSeries.createPriceLine({
-            price: info.projected_sl,
-            color: "#ef4444",
-            lineWidth: 1,
-            lineStyle: LightweightCharts.LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: "SL projeté",
+            price: projSl, color: "#ef4444", lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: "SL proj."
           });
         }
-        if (info.projected_tp) {
+        if (projTp) {
           tpLine = candleSeries.createPriceLine({
-            price: info.projected_tp,
-            color: "#22c55e",
-            lineWidth: 1,
-            lineStyle: LightweightCharts.LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: "TP projeté",
+            price: projTp, color: "#22c55e", lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: "TP proj."
           });
         }
         lwChart.timeScale().fitContent();
+        rsiChart.timeScale().fitContent();
+
+        const scoreBadge = document.getElementById("scoreBadge");
+        scoreBadge.textContent = `${score} / 4 critères`;
+        scoreBadge.className = "pill " + (score === 4 ? "ok" : "ko");
+
+        document.getElementById("indicatorSummary").textContent =
+          `Prix live : ${livePx.toFixed(2)} € | RSI(14) : ${rsi.toFixed(1)} | ATR(14) : ${atr.toFixed(2)} €`;
+
+        document.getElementById("criteriaList").innerHTML = [
+          {
+            label: "1. Tendance (Clôture > EMA 50)",
+            detail: `${closeCurr.toFixed(2)} € vs EMA50 ${e50Curr.toFixed(2)} €`,
+            ok: trendOk
+          },
+          {
+            label: "2. Impulsion (EMA 9 > EMA 21)",
+            detail: `EMA9 ${e9Curr.toFixed(2)} € vs EMA21 ${e21Curr.toFixed(2)} €`,
+            ok: crossOk
+          },
+          {
+            label: "3. Momentum (RSI 14 entre 45 et 65)",
+            detail: `RSI actuel : ${rsi.toFixed(1)}`,
+            ok: rsiOk
+          },
+          {
+            label: "4. Volume (> Moyenne 20 bougies)",
+            detail: `Vol ${volCurr.toFixed(2)} vs Moy ${volSma20.toFixed(2)}`,
+            ok: volOk
+          }
+        ].map(ch => `
+          <li class="check-item">
+            <div>
+              <div><strong>${ch.label}</strong></div>
+              <div class="check-detail">${ch.detail}</div>
+            </div>
+            <span class="pill ${ch.ok ? 'ok' : 'ko'}">${ch.ok ? 'VALIDÉ' : 'ATTENTE'}</span>
+          </li>
+        `).join("");
+
+        let pred = "";
+        if (score === 4) {
+          pred = `Signal d'achat réuni sur ${sym} ! Entrée ~${livePx.toFixed(2)} €, SL ~${projSl.toFixed(2)} €, TP ~${projTp.toFixed(2)} €.`;
+        } else if (!trendOk) {
+          pred = `Sous l'EMA 50 (${e50Curr.toFixed(2)} €) : pas d'achat haussier tant que le marché ne reprend pas sa tendance.`;
+        } else if (e9Curr <= e21Curr) {
+          pred = `Au-dessus de l'EMA 50, mais EMA 9 (${e9Curr.toFixed(2)} €) reste sous EMA 21 (${e21Curr.toFixed(2)} €) : attente d'un croisement haussier.`;
+        } else {
+          pred = `Tendance & EMA 9/21 orientés hausse ; si déclenchement, SL potentiel ~${projSl.toFixed(2)} € et TP ~${projTp.toFixed(2)} €.`;
+        }
+        document.getElementById("predictionBox").innerHTML = `<strong>🔮 Lecture live (${sym}) :</strong><br/>${pred}`;
+
+        renderPortfolioAndPositions();
+      } catch (e) {
+        console.error("Erreur Kraken:", e);
       }
-
-      // Checklist des 4 critères
-      const score = info.score || 0;
-      const scoreBadge = document.getElementById("scoreBadge");
-      scoreBadge.textContent = `${score} / 4 critères`;
-      scoreBadge.className = "pill " + (score === 4 ? "ok" : "ko");
-
-      document.getElementById("indicatorSummary").textContent =
-        `Cours : ${Number(info.current_price).toFixed(2)} € | RSI(14) : ${Number(info.rsi).toFixed(1)} | ATR(14) : ${Number(info.atr).toFixed(2)} €`;
-
-      const checks = info.checks || [];
-      document.getElementById("criteriaList").innerHTML = checks.map(ch => `
-        <li class="check-item">
-          <div>
-            <div><strong>${ch.label}</strong></div>
-            <div class="check-detail">${ch.detail}</div>
-          </div>
-          <span class="pill ${ch.ok ? 'ok' : 'ko'}">${ch.ok ? 'VALIDÉ' : 'ATTENTE'}</span>
-        </li>
-      `).join("");
-
-      document.getElementById("predictionBox").innerHTML =
-        `<strong>🔮 Lecture &amp; Scénario potentiel (${selectedSymbol}) :</strong><br/>${info.prediction_text || ""}`;
     }
 
-    async function refreshData() {
+    function renderPortfolioAndPositions() {
+      if (!portfolioData) return;
+
+      const badge = document.getElementById("statusBadge");
+      badge.textContent = portfolioData.status === "RUNNING" ? "SESSION EN COURS" : "EN ATTENTE";
+      badge.className = "badge " + (portfolioData.status === "RUNNING" ? "running" : "idle");
+
+      const cash = Number(portfolioData.cash_eur || 100);
+      let openVal = 0;
+      const posHtml = (portfolioData.open_positions || []).map(p => {
+        const curPx = Number(livePrices[p.symbol] || p.current_price || p.entry_price);
+        const amt = Number(p.amount || 0);
+        const entry = Number(p.entry_price || 0);
+        openVal += curPx * amt;
+        const unreal = (curPx - entry) * amt;
+        return `
+          <div style="padding:8px 0;">
+            🟢 <strong>${p.symbol}</strong> — Entrée : ${entry.toFixed(2)} € |
+            Live : ${curPx.toFixed(2)} € |
+            SL : <span class="neg">${Number(p.stop_loss).toFixed(2)} €</span> |
+            TP : <span class="pos">${Number(p.take_profit).toFixed(2)} €</span> |
+            PnL latent : <strong class="${unreal >= 0 ? 'pos' : 'neg'}">${fmtSignedEur(unreal)}</strong>
+          </div>
+        `;
+      });
+
+      const equity = portfolioData.status === "RUNNING" ? (cash + openVal) : Number(portfolioData.equity_eur || cash);
+      const pnl = equity - 100;
+
+      document.getElementById("equityVal").textContent = fmtEur(equity);
+      document.getElementById("cashVal").textContent = fmtEur(cash);
+      const pnlEl = document.getElementById("pnlVal");
+      pnlEl.textContent = fmtSignedEur(pnl);
+      pnlEl.className = "value " + (pnl >= 0 ? "pos" : "neg");
+
+      document.getElementById("tradesVal").textContent =
+        `${portfolioData.trades_session ?? 0} / ${portfolioData.max_trades_session ?? 3}`;
+
+      const pxLine = Object.entries(livePrices)
+        .map(([k, v]) => `<strong>${k}</strong> : ${Number(v).toFixed(2)} €`)
+        .join(" &nbsp;|&nbsp; ");
+
+      document.getElementById("positionsContainer").innerHTML =
+        `<div style="margin-bottom:8px;">${pxLine || "Récupération des cours..."}</div>` +
+        (posHtml.length ? posHtml.join("") : `<div class="empty">Aucune position ouverte actuellement.</div>`);
+    }
+
+    async function refreshPortfolioJson() {
       try {
         const res = await fetch("./status.json?t=" + Date.now(), { cache: "no-store" });
         if (!res.ok) return;
-        latestData = await res.json();
+        portfolioData = await res.json();
 
         document.getElementById("lastUpdate").textContent =
-          "Dernière mise à jour : " + (latestData.updated_at_utc || "-") + " (actualisation auto toutes les 30s)";
+          "Dernier push portefeuille : " + (portfolioData.updated_at_utc || "-") + " • Marché Kraken actualisé toutes les 20s";
 
-        const badge = document.getElementById("statusBadge");
-        badge.textContent = latestData.status === "RUNNING" ? "EN COURS (LIVE)" : "TERMINÉ / EN ATTENTE";
-        badge.className = "badge " + (latestData.status === "RUNNING" ? "running" : "idle");
+        renderPortfolioAndPositions();
 
-        document.getElementById("equityVal").textContent = fmtEur(latestData.equity_eur);
-        document.getElementById("cashVal").textContent = fmtEur(latestData.cash_eur);
-
-        const pnlEl = document.getElementById("pnlVal");
-        const pnl = Number(latestData.session_pnl_eur || 0);
-        pnlEl.textContent = fmtSignedEur(pnl);
-        pnlEl.className = "value " + (pnl >= 0 ? "pos" : "neg");
-
-        document.getElementById("tradesVal").textContent =
-          (latestData.trades_session ?? 0) + " / " + (latestData.max_trades_session ?? 3);
-
-        const availableSymbols = Object.keys(latestData.market_analysis || {});
-        if (availableSymbols.length > 0 && !availableSymbols.includes(selectedSymbol)) {
-          selectedSymbol = availableSymbols[0];
-        }
-        renderSymbolView(selectedSymbol);
-
-        // Positions ouvertes
-        const posDiv = document.getElementById("positionsContainer");
-        if (latestData.open_positions && latestData.open_positions.length > 0) {
-          posDiv.innerHTML = latestData.open_positions.map(p => `
-            <div style="padding:8px 0;">
-              🟢 <strong>${p.symbol}</strong> — Entrée : ${Number(p.entry_price).toFixed(2)} € |
-              Actuel : ${Number(p.current_price).toFixed(2)} € |
-              Stop-Loss : <span class="neg">${Number(p.stop_loss).toFixed(2)} €</span> |
-              Take-Profit : <span class="pos">${Number(p.take_profit).toFixed(2)} €</span> |
-              PnL latent : <strong class="${p.unrealized_pnl_eur >= 0 ? 'pos' : 'neg'}">${fmtSignedEur(p.unrealized_pnl_eur)}</strong>
-            </div>
-          `).join("");
-        } else {
-          posDiv.innerHTML = `<div class="empty">Aucune position ouverte. ${latestData.blocker_reason ? "État filtre : " + latestData.blocker_reason : ""}</div>`;
-        }
-
-        // Courbe capital
-        const curve = latestData.equity_curve || [];
+        const curve = portfolioData.equity_curve || [];
         const ctx = document.getElementById("equityChart").getContext("2d");
         if (!eqChart) {
           eqChart = new Chart(ctx, {
@@ -469,7 +657,6 @@
             data: {
               labels: curve.map(pt => pt.time),
               datasets: [{
-                label: "Capital (€)",
                 data: curve.map(pt => pt.equity),
                 borderColor: "#38bdf8",
                 backgroundColor: "rgba(56, 189, 248, 0.12)",
@@ -493,9 +680,8 @@
           eqChart.update();
         }
 
-        // Historique trades
         const tbody = document.getElementById("tradesBody");
-        const trades = latestData.recent_trades || [];
+        const trades = portfolioData.recent_trades || [];
         if (trades.length === 0) {
           tbody.innerHTML = '<tr><td colspan="8" class="empty" style="padding:14px;">Aucun trade enregistré pour le moment.</td></tr>';
         } else {
@@ -519,13 +705,19 @@
           }).join("");
         }
       } catch (e) {
-        console.error("Erreur rafraîchissement:", e);
+        console.error("Erreur status.json:", e);
       }
     }
 
-    initCandleChart();
-    refreshData();
-    setInterval(refreshData, 30000);
+    function manualRefresh() {
+      refreshPortfolioJson();
+      fetchAndRenderKraken(selectedSymbol);
+    }
+
+    initCharts();
+    manualRefresh();
+    setInterval(refreshPortfolioJson, 30000);
+    setInterval(() => fetchAndRenderKraken(selectedSymbol), 20000);
   </script>
 </body>
 </html>

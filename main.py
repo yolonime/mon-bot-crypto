@@ -1,6 +1,6 @@
 """
 Point d'entrée principal de la session de trading simulé (120 minutes).
-Envoie les bougies, indicateurs, prédictions et positions au site web GitHub Pages minute par minute.
+Pousse vers GitHub uniquement lors d'un trade (achat/vente) et à la fin de la session.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -15,12 +15,7 @@ from dashboard import push_live_update, update_readme, update_web_status
 from notifier import send_telegram
 from paper_broker import PaperBroker
 from risk_manager import RiskManager
-from strategy import (
-    build_symbol_snapshot,
-    check_buy_signal,
-    check_exit_condition,
-    compute_indicators,
-)
+from strategy import check_buy_signal, check_exit_condition, compute_indicators
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,16 +44,19 @@ def close_all_positions(
     risk_manager: RiskManager,
     current_prices: dict[str, float],
     reason: str,
-) -> None:
+) -> bool:
+    closed_any = False
     for symbol in list(broker.positions.keys()):
         px = current_prices.get(symbol, broker.positions[symbol]["entry_price"])
         pnl = broker.close_long(symbol, px, reason=reason)
         if pnl is not None:
+            closed_any = True
             risk_manager.record_trade_closed(pnl)
             logger.info("Position fermée [%s] (%s) | PnL net : %+.4f €", symbol, reason, pnl)
             send_telegram(
                 f"🔴 <b>VENTE ({reason})</b>\nPaire : <b>{symbol}</b>\nPrix : {px:.2f} €\nPnL net : <b>{pnl:+.2f} €</b>\nCapital : {broker.cash_eur:.2f} €"
             )
+    return closed_any
 
 
 def run_session() -> None:
@@ -78,7 +76,6 @@ def run_session() -> None:
     risk_manager = RiskManager(initial_session_capital=config.INITIAL_CAPITAL_EUR)
 
     last_prices: dict[str, float] = {}
-    last_analysis: dict[str, dict] = {}
     equity_curve: list[dict] = []
 
     try:
@@ -88,12 +85,12 @@ def run_session() -> None:
                 logger.info("Temps de session écoulé (%d min). Arrêt propre.", config.SESSION_DURATION_MINUTES)
                 break
 
+            trade_occurred = False
             closing_soon = now >= close_window_start
             current_prices: dict[str, float] = {}
             indicators_by_symbol: dict[str, pd.DataFrame] = {}
-            market_analysis: dict[str, dict] = {}
 
-            # 1. Récupération des données, calcul des indicateurs et snapshot visuel
+            # 1. Récupération des données et calcul des indicateurs
             for symbol in config.SYMBOLS:
                 try:
                     df = fetch_ohlcv_df(exchange, symbol)
@@ -102,8 +99,6 @@ def run_session() -> None:
                     latest_price = float(df_ind.iloc[-1]["close"])
                     current_prices[symbol] = latest_price
                     last_prices[symbol] = latest_price
-                    market_analysis[symbol] = build_symbol_snapshot(df_ind)
-                    last_analysis[symbol] = market_analysis[symbol]
                 except (ccxt.NetworkError, ccxt.ExchangeError) as exc:
                     logger.warning("Erreur réseau/exchange sur %s : %s", symbol, exc)
                 except Exception as exc:
@@ -119,7 +114,23 @@ def run_session() -> None:
             if killed:
                 logger.warning("KILL SWITCH DÉCLENCHÉ : %s", kill_reason)
                 send_telegram(f"🛑 <b>KILL SWITCH DÉCLENCHÉ</b>\n{kill_reason}")
-                close_all_positions(broker, risk_manager, current_prices, reason="KILL_SWITCH")
+                if close_all_positions(broker, risk_manager, current_prices, reason="KILL_SWITCH"):
+                    trade_occurred = True
+                equity_after = broker.total_equity(current_prices)
+                equity_curve.append({"time": now.strftime("%H:%M"), "equity": round(equity_after, 4)})
+                update_readme()
+                update_web_status(
+                    session_id=session_id,
+                    status="RUNNING",
+                    cash_eur=broker.cash_eur,
+                    equity_eur=equity_after,
+                    trades_session=risk_manager.trades_this_session,
+                    prices=current_prices,
+                    positions=broker.positions,
+                    equity_curve=equity_curve,
+                )
+                if trade_occurred:
+                    push_live_update("Kill switch trade exit")
                 break
 
             # 3. Gestion des positions ouvertes (SL / TP / Clôture fin de session)
@@ -131,6 +142,7 @@ def run_session() -> None:
                 if closing_soon:
                     pnl = broker.close_long(symbol, px, reason="SESSION_END_CLOSE")
                     if pnl is not None:
+                        trade_occurred = True
                         risk_manager.record_trade_closed(pnl)
                         logger.info("Clôture fin de session [%s] à %.4f € | PnL net : %+.4f €", symbol, px, pnl)
                         send_telegram(
@@ -143,6 +155,7 @@ def run_session() -> None:
                 if exit_reason:
                     pnl = broker.close_long(symbol, px, reason=exit_reason)
                     if pnl is not None:
+                        trade_occurred = True
                         risk_manager.record_trade_closed(pnl)
                         logger.info("Sortie [%s] (%s) à %.4f € | PnL net : %+.4f €", symbol, exit_reason, px, pnl)
                         icon = "✅" if pnl >= 0 else "❌"
@@ -151,16 +164,14 @@ def run_session() -> None:
                         )
 
             # 4. Recherche de nouveaux signaux d'achat
-            blocker_msg = ""
             for symbol, df_ind in indicators_by_symbol.items():
-                can_open, reason_msg = risk_manager.can_open_trade(
+                can_open, _ = risk_manager.can_open_trade(
                     current_capital=broker.cash_eur,
                     open_positions_count=len(broker.positions),
                     closing_soon=closing_soon,
                     now=now,
                 )
                 if not can_open:
-                    blocker_msg = reason_msg
                     continue
 
                 signal = check_buy_signal(df_ind)
@@ -171,7 +182,6 @@ def run_session() -> None:
                         stop_loss=signal["stop_loss"],
                     )
                     if amount <= 0:
-                        blocker_msg = size_msg
                         logger.info("Signal ignoré sur %s : %s", symbol, size_msg)
                         continue
 
@@ -184,6 +194,7 @@ def run_session() -> None:
                         reason="EMA_RSI_VOL_BUY",
                     )
                     if opened:
+                        trade_occurred = True
                         risk_manager.record_trade_opened(now=now)
                         logger.info(
                             "ACHAT [%s] | %s | SL=%.4f | TP=%.4f",
@@ -196,7 +207,7 @@ def run_session() -> None:
                             f"🟢 <b>ACHAT SPOT ({symbol})</b>\nPrix : {opened['entry_price']:.2f} € | Montant : {notional_eur:.2f} €\nStop-Loss : {signal['stop_loss']:.2f} €\nTake-Profit : {signal['take_profit']:.2f} €"
                         )
 
-            # 5. Mise à jour du site web minute par minute
+            # 5. Mise à jour locale + git push uniquement lors d'un trade
             equity_after = broker.total_equity(current_prices)
             equity_curve.append({"time": now.strftime("%H:%M"), "equity": round(equity_after, 4)})
             update_readme()
@@ -209,10 +220,9 @@ def run_session() -> None:
                 prices=current_prices,
                 positions=broker.positions,
                 equity_curve=equity_curve,
-                market_analysis=market_analysis,
-                blocker_reason=blocker_msg,
             )
-            push_live_update()
+            if trade_occurred:
+                push_live_update("Trade executed - portfolio update")
 
             logger.info(
                 "État | Cash=%.2f € | Equity=%.2f € | Positions=%d | Trades session=%d/%d",
@@ -245,10 +255,8 @@ def run_session() -> None:
             prices=last_prices,
             positions=broker.positions,
             equity_curve=equity_curve,
-            market_analysis=last_analysis,
-            blocker_reason="Session terminée",
         )
-        push_live_update()
+        push_live_update("Session finished - final portfolio update")
 
         net_session_pnl = final_equity - config.INITIAL_CAPITAL_EUR
         logger.info(

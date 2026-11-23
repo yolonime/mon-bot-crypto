@@ -1,14 +1,17 @@
 """
-Met à jour README.md et docs/status.json (bougies, indicateurs, prédictions, trades)
-et pousse les données vers GitHub à chaque minute.
+Met à jour README.md et docs/status.json (portefeuille, positions ouvertes, courbe d'équité, trades)
+et pousse vers GitHub uniquement lors d'un trade ou en fin de session.
 """
 
 from datetime import datetime, timezone
 import json
+import logging
 import os
 import subprocess
 import pandas as pd
 import config
+
+logger = logging.getLogger("CryptoPaperBot")
 
 START_MARKER = "<!-- DASHBOARD_START -->"
 END_MARKER = "<!-- DASHBOARD_END -->"
@@ -47,8 +50,6 @@ def update_web_status(
     prices: dict[str, float],
     positions: dict[str, dict],
     equity_curve: list[dict],
-    market_analysis: dict[str, dict],
-    blocker_reason: str = "",
 ) -> None:
     os.makedirs(os.path.dirname(config.STATUS_JSON_PATH), exist_ok=True)
     now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S UTC")
@@ -60,6 +61,7 @@ def update_web_status(
         open_pos_list.append(
             {
                 "symbol": sym,
+                "amount": float(pos["amount"]),
                 "entry_price": float(pos["entry_price"]),
                 "current_price": cur_px,
                 "stop_loss": float(pos["stop_loss"]),
@@ -81,15 +83,17 @@ def update_web_status(
         "open_positions": open_pos_list,
         "equity_curve": equity_curve[-150:],
         "recent_trades": _load_recent_trades(20),
-        "market_analysis": market_analysis,
-        "blocker_reason": blocker_reason,
     }
 
     with open(config.STATUS_JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
+        json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
-def push_live_update() -> None:
+def push_live_update(commit_message: str = "Trade update") -> None:
+    """
+    Pousse docs/status.json, trades_history.csv et README.md sur GitHub
+    uniquement lorsqu'un trade est exécuté ou à la clôture de la session.
+    """
     if os.getenv("GITHUB_ACTIONS") != "true":
         return
     try:
@@ -104,10 +108,15 @@ def push_live_update() -> None:
         )
         diff = subprocess.run(["git", "diff", "--staged", "--quiet"], check=False)
         if diff.returncode != 0:
-            subprocess.run(["git", "commit", "-m", "Live status update"], check=False)
-            subprocess.run(["git", "push"], check=False)
-    except Exception:
-        pass
+            subprocess.run(["git", "commit", "-m", commit_message], check=False)
+            subprocess.run(["git", "pull", "--rebase", "--autostash"], check=False)
+            res = subprocess.run(["git", "push"], capture_output=True, text=True, check=False)
+            if res.returncode != 0:
+                logger.warning("Échec git push : %s", res.stderr.strip())
+            else:
+                logger.info("Synchronisation GitHub réussie (%s).", commit_message)
+    except Exception as exc:
+        logger.warning("Erreur lors de la synchronisation GitHub : %s", exc)
 
 
 def build_dashboard_markdown() -> str:
@@ -118,7 +127,12 @@ def build_dashboard_markdown() -> str:
 
     df = pd.read_csv(config.TRADES_CSV_PATH)
     if df.empty:
-        return f"*Dernière mise à jour : {now_str}*\n\nAucune transaction enregistrée pour le moment (le bot a surveillé le marché sans signal valide)."
+        return (
+            f"*Dernière mise à jour : {now_str}*
+
+"
+            "Aucune transaction enregistrée pour le moment (le bot a surveillé le marché sans signal valide)."
+        )
 
     sells = df[df["side"] == "SELL"].copy()
     buys = df[df["side"] == "BUY"].copy()
@@ -166,25 +180,36 @@ def build_dashboard_markdown() -> str:
             f"{float(row['gross_value_eur']):.2f} € | {float(row['fee_eur']):.3f} € | {pnl_str} | `{row['reason']}` |"
         )
 
-    return "\n".join(lines)
+    return "
+".join(lines)
 
 
 def update_readme() -> None:
     dashboard_md = build_dashboard_markdown()
-    block = f"{START_MARKER}\n{dashboard_md}\n{END_MARKER}"
+    block = f"{START_MARKER}
+{dashboard_md}
+{END_MARKER}"
 
     if os.path.exists(config.README_PATH):
         with open(config.README_PATH, "r", encoding="utf-8") as f:
             content = f.read()
     else:
-        content = f"# Mon Bot Crypto (Paper Trading)\n\n## Dernier rapport de suivi\n{block}\n"
+        content = f"# Mon Bot Crypto (Paper Trading)
+
+## Dernier rapport de suivi
+{block}
+"
 
     if START_MARKER in content and END_MARKER in content:
         before = content.split(START_MARKER)[0]
         after = content.split(END_MARKER)[1]
         new_content = f"{before}{block}{after}"
     else:
-        new_content = f"{content.rstrip()}\n\n## Dernier rapport de suivi\n{block}\n"
+        new_content = f"{content.rstrip()}
+
+## Dernier rapport de suivi
+{block}
+"
 
     with open(config.README_PATH, "w", encoding="utf-8") as f:
         f.write(new_content)
