@@ -2,17 +2,505 @@
   "bot_id": "bot3",
   "bot_name": "Bot 3 — Réactif (EMA 5/13)",
   "bot_description": "Moyennes courtes EMA 5/13 au-dessus d'EMA 50 avec RSI 45–70 pour entrer plus tôt.",
-  "params": { "ema_fast": 5, "ema_slow": 13, "ema_trend": 50, "rsi_min": 45.0, "rsi_max": 70.0, "atr_sl_mult": 1.5, "rr_ratio": 2.0 },
-  "updated_at_utc": "En attente de session...",
-  "session_id": "-",
+  "params": {
+    "ema_fast": 5,
+    "ema_slow": 13,
+    "ema_trend": 50,
+    "rsi_min": 45.0,
+    "rsi_max": 70.0,
+    "atr_sl_mult": 1.5,
+    "rr_ratio": 2.0
+  },
+  "updated_at_utc": "24/11/2026 10:56:27 UTC",
+  "session_id": "20261124_085627",
   "status": "IDLE",
   "cash_eur": 100.0,
   "equity_eur": 100.0,
   "session_pnl_eur": 0.0,
   "trades_session": 0,
   "max_trades_session": 3,
-  "prices": {},
+  "prices": {
+    "BTC/EUR": 54492.4,
+    "ETH/EUR": 1534.96
+  },
   "open_positions": [],
-  "equity_curve": [],
+  "equity_curve": [
+    {
+      "time": "08:56",
+      "equity": 100.0
+    },
+    {
+      "time": "08:57",
+      "equity": 100.0
+    },
+    {
+      "time": "08:58",
+      "equity": 100.0
+    },
+    {
+      "time": "08:59",
+      "equity": 100.0
+    },
+    {
+      "time": "09:00",
+      "equity": 100.0
+    },
+    {
+      "time": "09:01",
+      "equity": 100.0
+    },
+    {
+      "time": "09:02",
+      "equity": 100.0
+    },
+    {
+      "time": "09:03",
+      "equity": 100.0
+    },
+    {
+      "time": "09:04",
+      "equity": 100.0
+    },
+    {
+      "time": "09:05",
+      "equity": 100.0
+    },
+    {
+      "time": "09:06",
+      "equity": 100.0
+    },
+    {
+      "time": "09:07",
+      "equity": 100.0
+    },
+    {
+      "time": "09:08",
+      "equity": 100.0
+    },
+    {
+      "time": "09:09",
+      "equity": 100.0
+    },
+    {
+      "time": "09:10",
+      "equity": 100.0
+    },
+    {
+      "time": "09:11",
+      "equity": 100.0
+    },
+    {
+      "time": "09:12",
+      "equity": 100.0
+    },
+    {
+      "time": "09:13",
+      "equity": 100.0
+    },
+    {
+      "time": "09:14",
+      "equity": 100.0
+    },
+    {
+      "time": "09:15",
+      "equity": 100.0
+    },
+    {
+      "time": "09:16",
+      "equity": 100.0
+    },
+    {
+      "time": "09:17",
+      "equity": 100.0
+    },
+    {
+      "time": "09:19",
+      "equity": 100.0
+    },
+    {
+      "time": "09:20",
+      "equity": 100.0
+    },
+    {
+      "time": "09:21",
+      "equity": 100.0
+    },
+    {
+      "time": "09:22",
+      "equity": 100.0
+    },
+    {
+      "time": "09:23",
+      "equity": 100.0
+    },
+    {
+      "time": "09:24",
+      "equity": 100.0
+    },
+    {
+      "time": "09:25",
+      "equity": 100.0
+    },
+    {
+      "time": "09:26",
+      "equity": 100.0
+    },
+    {
+      "time": "09:27",
+      "equity": 100.0
+    },
+    {
+      "time": "09:28",
+      "equity": 100.0
+    },
+    {
+      "time": "09:29",
+      "equity": 100.0
+    },
+    {
+      "time": "09:30",
+      "equity": 100.0
+    },
+    {
+      "time": "09:31",
+      "equity": 100.0
+    },
+    {
+      "time": "09:32",
+      "equity": 100.0
+    },
+    {
+      "time": "09:33",
+      "equity": 100.0
+    },
+    {
+      "time": "09:34",
+      "equity": 100.0
+    },
+    {
+      "time": "09:35",
+      "equity": 100.0
+    },
+    {
+      "time": "09:36",
+      "equity": 100.0
+    },
+    {
+      "time": "09:37",
+      "equity": 100.0
+    },
+    {
+      "time": "09:38",
+      "equity": 100.0
+    },
+    {
+      "time": "09:39",
+      "equity": 100.0
+    },
+    {
+      "time": "09:40",
+      "equity": 100.0
+    },
+    {
+      "time": "09:41",
+      "equity": 100.0
+    },
+    {
+      "time": "09:42",
+      "equity": 100.0
+    },
+    {
+      "time": "09:43",
+      "equity": 100.0
+    },
+    {
+      "time": "09:44",
+      "equity": 100.0
+    },
+    {
+      "time": "09:45",
+      "equity": 100.0
+    },
+    {
+      "time": "09:46",
+      "equity": 100.0
+    },
+    {
+      "time": "09:47",
+      "equity": 100.0
+    },
+    {
+      "time": "09:48",
+      "equity": 100.0
+    },
+    {
+      "time": "09:49",
+      "equity": 100.0
+    },
+    {
+      "time": "09:50",
+      "equity": 100.0
+    },
+    {
+      "time": "09:51",
+      "equity": 100.0
+    },
+    {
+      "time": "09:52",
+      "equity": 100.0
+    },
+    {
+      "time": "09:53",
+      "equity": 100.0
+    },
+    {
+      "time": "09:54",
+      "equity": 100.0
+    },
+    {
+      "time": "09:55",
+      "equity": 100.0
+    },
+    {
+      "time": "09:56",
+      "equity": 100.0
+    },
+    {
+      "time": "09:57",
+      "equity": 100.0
+    },
+    {
+      "time": "09:58",
+      "equity": 100.0
+    },
+    {
+      "time": "09:59",
+      "equity": 100.0
+    },
+    {
+      "time": "10:00",
+      "equity": 100.0
+    },
+    {
+      "time": "10:01",
+      "equity": 100.0
+    },
+    {
+      "time": "10:02",
+      "equity": 100.0
+    },
+    {
+      "time": "10:04",
+      "equity": 100.0
+    },
+    {
+      "time": "10:05",
+      "equity": 100.0
+    },
+    {
+      "time": "10:06",
+      "equity": 100.0
+    },
+    {
+      "time": "10:07",
+      "equity": 100.0
+    },
+    {
+      "time": "10:08",
+      "equity": 100.0
+    },
+    {
+      "time": "10:09",
+      "equity": 100.0
+    },
+    {
+      "time": "10:10",
+      "equity": 100.0
+    },
+    {
+      "time": "10:11",
+      "equity": 100.0
+    },
+    {
+      "time": "10:12",
+      "equity": 100.0
+    },
+    {
+      "time": "10:13",
+      "equity": 100.0
+    },
+    {
+      "time": "10:14",
+      "equity": 100.0
+    },
+    {
+      "time": "10:15",
+      "equity": 100.0
+    },
+    {
+      "time": "10:16",
+      "equity": 100.0
+    },
+    {
+      "time": "10:17",
+      "equity": 100.0
+    },
+    {
+      "time": "10:18",
+      "equity": 100.0
+    },
+    {
+      "time": "10:19",
+      "equity": 100.0
+    },
+    {
+      "time": "10:20",
+      "equity": 100.0
+    },
+    {
+      "time": "10:21",
+      "equity": 100.0
+    },
+    {
+      "time": "10:22",
+      "equity": 100.0
+    },
+    {
+      "time": "10:23",
+      "equity": 100.0
+    },
+    {
+      "time": "10:24",
+      "equity": 100.0
+    },
+    {
+      "time": "10:25",
+      "equity": 100.0
+    },
+    {
+      "time": "10:26",
+      "equity": 100.0
+    },
+    {
+      "time": "10:27",
+      "equity": 100.0
+    },
+    {
+      "time": "10:28",
+      "equity": 100.0
+    },
+    {
+      "time": "10:29",
+      "equity": 100.0
+    },
+    {
+      "time": "10:30",
+      "equity": 100.0
+    },
+    {
+      "time": "10:31",
+      "equity": 100.0
+    },
+    {
+      "time": "10:32",
+      "equity": 100.0
+    },
+    {
+      "time": "10:33",
+      "equity": 100.0
+    },
+    {
+      "time": "10:34",
+      "equity": 100.0
+    },
+    {
+      "time": "10:35",
+      "equity": 100.0
+    },
+    {
+      "time": "10:36",
+      "equity": 100.0
+    },
+    {
+      "time": "10:37",
+      "equity": 100.0
+    },
+    {
+      "time": "10:38",
+      "equity": 100.0
+    },
+    {
+      "time": "10:39",
+      "equity": 100.0
+    },
+    {
+      "time": "10:40",
+      "equity": 100.0
+    },
+    {
+      "time": "10:41",
+      "equity": 100.0
+    },
+    {
+      "time": "10:42",
+      "equity": 100.0
+    },
+    {
+      "time": "10:43",
+      "equity": 100.0
+    },
+    {
+      "time": "10:44",
+      "equity": 100.0
+    },
+    {
+      "time": "10:45",
+      "equity": 100.0
+    },
+    {
+      "time": "10:46",
+      "equity": 100.0
+    },
+    {
+      "time": "10:48",
+      "equity": 100.0
+    },
+    {
+      "time": "10:49",
+      "equity": 100.0
+    },
+    {
+      "time": "10:50",
+      "equity": 100.0
+    },
+    {
+      "time": "10:51",
+      "equity": 100.0
+    },
+    {
+      "time": "10:52",
+      "equity": 100.0
+    },
+    {
+      "time": "10:53",
+      "equity": 100.0
+    },
+    {
+      "time": "10:54",
+      "equity": 100.0
+    },
+    {
+      "time": "10:55",
+      "equity": 100.0
+    },
+    {
+      "time": "10:56",
+      "equity": 100.0
+    },
+    {
+      "time": "10:56",
+      "equity": 100.0
+    }
+  ],
   "recent_trades": []
 }
