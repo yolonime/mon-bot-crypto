@@ -11,8 +11,8 @@
     "atr_sl_mult": 1.5,
     "rr_ratio": 2.0
   },
-  "updated_at_utc": "26/11/2026 00:41:34 UTC",
-  "session_id": "20261125_224134",
+  "updated_at_utc": "27/11/2026 00:32:25 UTC",
+  "session_id": "20261126_223225",
   "status": "IDLE",
   "cash_eur": 100.0,
   "equity_eur": 100.0,
@@ -20,11 +20,47 @@
   "trades_session": 0,
   "max_trades_session": 3,
   "prices": {
-    "BTC/EUR": 55254.5,
-    "ETH/EUR": 1547.31
+    "BTC/EUR": 55180.7,
+    "ETH/EUR": 1541.83
   },
   "open_positions": [],
   "equity_curve": [
+    {
+      "time": "22:32",
+      "equity": 100.0
+    },
+    {
+      "time": "22:33",
+      "equity": 100.0
+    },
+    {
+      "time": "22:34",
+      "equity": 100.0
+    },
+    {
+      "time": "22:35",
+      "equity": 100.0
+    },
+    {
+      "time": "22:36",
+      "equity": 100.0
+    },
+    {
+      "time": "22:37",
+      "equity": 100.0
+    },
+    {
+      "time": "22:38",
+      "equity": 100.0
+    },
+    {
+      "time": "22:39",
+      "equity": 100.0
+    },
+    {
+      "time": "22:40",
+      "equity": 100.0
+    },
     {
       "time": "22:41",
       "equity": 100.0
@@ -90,11 +126,11 @@
       "equity": 100.0
     },
     {
-      "time": "22:57",
+      "time": "22:58",
       "equity": 100.0
     },
     {
-      "time": "22:58",
+      "time": "22:59",
       "equity": 100.0
     },
     {
@@ -274,11 +310,11 @@
       "equity": 100.0
     },
     {
-      "time": "23:44",
+      "time": "23:45",
       "equity": 100.0
     },
     {
-      "time": "23:45",
+      "time": "23:46",
       "equity": 100.0
     },
     {
@@ -458,47 +494,11 @@
       "equity": 100.0
     },
     {
-      "time": "00:31",
+      "time": "00:32",
       "equity": 100.0
     },
     {
-      "time": "00:33",
-      "equity": 100.0
-    },
-    {
-      "time": "00:34",
-      "equity": 100.0
-    },
-    {
-      "time": "00:35",
-      "equity": 100.0
-    },
-    {
-      "time": "00:36",
-      "equity": 100.0
-    },
-    {
-      "time": "00:37",
-      "equity": 100.0
-    },
-    {
-      "time": "00:38",
-      "equity": 100.0
-    },
-    {
-      "time": "00:39",
-      "equity": 100.0
-    },
-    {
-      "time": "00:40",
-      "equity": 100.0
-    },
-    {
-      "time": "00:41",
-      "equity": 100.0
-    },
-    {
-      "time": "00:41",
+      "time": "00:32",
       "equity": 100.0
     }
   ],
